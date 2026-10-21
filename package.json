@@ -1,0 +1,57 @@
+{
+  "name": "koolikell",
+  "version": "1.0.0",
+  "description": "Автоматическая система школьных звонков Koolikell",
+  "main": "dist/main/main.js",
+  "author": "",
+  "scripts": {
+    "clean": "rimraf dist",
+    "build:electron": "tsc -p tsconfig.electron.json",
+    "build:vite": "vite build",
+    "copy:assets": "node scripts/copy-assets.js",
+    "build": "npm run clean && npm run build:electron && npm run build:vite && npm run copy:assets",
+    "start": "electron .",
+    "dev": "npm run build && electron .",
+    "pack:exe": "npm run build && electron-builder --win --x64 --dir",
+    "dist:exe": "npm run build && electron-builder --win --x64"
+  },
+  "build": {
+    "appId": "com.koolikell.schoolbell",
+    "productName": "Koolikell",
+    "directories": {
+      "output": "release"
+    },
+    "win": {
+      "target": [
+        "nsis",
+        "portable"
+      ],
+      "icon": "assets/logo.png"
+    },
+    "files": [
+      "dist/**/*",
+      "assets/**/*",
+      "package.json"
+    ]
+  },
+  "dependencies": {
+    "lucide-react": "^1.16.0",
+    "react": "^19.2.4",
+    "react-dom": "^19.2.4"
+  },
+  "devDependencies": {
+    "@types/node": "^24.19.2",
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^5.1.4",
+    "autoprefixer": "^10.4.27",
+    "copyfiles": "^2.4.1",
+    "electron": "^44.9.0",
+    "electron-builder": "^26.15.3",
+    "postcss": "^8.5.8",
+    "rimraf": "^6.1.3",
+    "tailwindcss": "^3.4.17",
+    "typescript": "^5.9.3",
+    "vite": "^7.3.1"
+  }
+}

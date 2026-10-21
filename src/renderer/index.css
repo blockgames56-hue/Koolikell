@@ -1,0 +1,80 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  body {
+    font-family: 'Inter', system-ui, sans-serif;
+    @apply bg-slate-100/70 text-slate-800 select-none overflow-hidden;
+  }
+}
+
+@layer components {
+  .card {
+    @apply bg-white dark:bg-[#0f172a] rounded-2xl border border-slate-200/90 dark:border-[#1e293b] shadow-xs transition-all duration-200;
+  }
+
+  .card-hover {
+    @apply hover:shadow-md hover:border-[#185d9e]/40 dark:hover:border-[#185d9e];
+  }
+
+  .btn-primary {
+    @apply inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-[#185d9e] text-white font-medium rounded-xl
+           transition-all duration-200 hover:bg-[#154f86] active:scale-95 cursor-pointer shadow-sm shadow-[#185d9e]/20;
+  }
+
+  .btn-secondary {
+    @apply inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-[#edf5fc] dark:bg-[#16294a] text-[#185d9e] dark:text-[#7bb3e8] font-medium rounded-xl
+           border border-[#b5d5f2] dark:border-[#223d6b] transition-all duration-200 hover:bg-[#d7e8f8] dark:hover:bg-[#1d3560] active:scale-95 cursor-pointer;
+  }
+
+  .btn-ghost {
+    @apply inline-flex items-center justify-center gap-2 px-4 py-2 text-slate-700 dark:text-slate-200 font-medium rounded-xl
+           transition-all duration-200 hover:bg-slate-100 dark:hover:bg-[#1e293b] active:scale-95 cursor-pointer;
+  }
+
+  .input-field {
+    @apply w-full px-4 py-2.5 bg-slate-50 dark:bg-[#131d31] border border-slate-200 dark:border-[#273852] rounded-xl text-slate-800 dark:text-white
+           transition-all duration-200 focus:outline-none focus:border-[#185d9e] focus:bg-white dark:focus:bg-[#131d31]
+           focus:ring-2 focus:ring-[#185d9e]/20;
+  }
+
+  .toggle {
+    @apply relative inline-flex h-6 w-11 items-center rounded-full transition-colors duration-200 cursor-pointer;
+  }
+
+  .toggle-knob {
+    @apply inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform duration-200;
+  }
+
+  .section-title {
+    @apply text-lg font-semibold text-slate-900 dark:text-white;
+  }
+
+  .section-subtitle {
+    @apply text-sm text-slate-600 dark:text-slate-300;
+  }
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
