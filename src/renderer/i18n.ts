@@ -61,6 +61,7 @@ export interface Translations {
   addBell: string;
   startLesson: string;
   endLesson: string;
+  dragToReorder: string;
   copyToWeekdays: string;
   copySuccess: string;
 
@@ -110,6 +111,8 @@ export interface Translations {
   trimSaveBtn: string;
   noMelodiesMsg: string;
   noMelodySelected: string;
+  noMusicToRing: string;
+  noMelodiesDashboard: string;
 
   // Default track names
   trackClassic: string;
@@ -175,6 +178,7 @@ export const translations: Record<Language, Translations> = {
     addBell: 'Добавить звонок',
     startLesson: 'Начало',
     endLesson: 'Конец',
+    dragToReorder: 'Потяните, чтобы изменить порядок (клик — сменить тип)',
     copyToWeekdays: 'Скопировать на Пн–Пт',
     copySuccess: 'Расписание скопировано на будние дни (Пн–Пт)',
 
@@ -219,8 +223,10 @@ export const translations: Record<Language, Translations> = {
     trimPreset30s: '30 сек',
     trimPresetFull: 'Вся песня',
     trimSaveBtn: 'Сохранить и выбрать',
-    noMelodiesMsg: 'Список мелодий пуст.',
+    noMelodiesMsg: 'Список мелодий пуст. Нажмите «Загрузить мелодию», чтобы добавить файл.',
     noMelodySelected: 'Мелодия не выбрана',
+    noMusicToRing: 'Нельзя подать звонок: сначала загрузите мелодию',
+    noMelodiesDashboard: 'Мелодии не загружены. Для подачи звонков добавьте аудиофайл в разделе «Звонки».',
 
     trackClassic: 'Школьный звонок (классический)',
     trackWestminster: 'Мелодия «Вестминстер»',
@@ -284,6 +290,7 @@ export const translations: Record<Language, Translations> = {
     addBell: 'Add bell',
     startLesson: 'Start',
     endLesson: 'End',
+    dragToReorder: 'Drag to change order (click to toggle type)',
     copyToWeekdays: 'Copy to Mon–Fri',
     copySuccess: 'Schedule copied to weekdays (Mon–Fri)',
 
@@ -330,6 +337,8 @@ export const translations: Record<Language, Translations> = {
     trimSaveBtn: 'Save and Select',
     noMelodiesMsg: 'Melody list is empty. Click "Upload song" to add a bell melody.',
     noMelodySelected: 'No melody selected',
+    noMusicToRing: 'Cannot ring: please upload at least one melody',
+    noMelodiesDashboard: 'No melodies uploaded. To ring bells, add an audio file in the "Bells" section.',
 
     trackClassic: 'Classic school bell',
     trackWestminster: 'Westminster chimes',
@@ -393,6 +402,7 @@ export const translations: Record<Language, Translations> = {
     addBell: 'Lisa kell',
     startLesson: 'Algus',
     endLesson: 'Lõpp',
+    dragToReorder: 'Lohistage järjekorra muutmiseks (klõpsake tüübi vahetamiseks)',
     copyToWeekdays: 'Kopeeri E–R',
     copySuccess: 'Tunniplaan kopeeritud tööpäevadele (E–R)',
 
@@ -439,6 +449,8 @@ export const translations: Record<Language, Translations> = {
     trimSaveBtn: 'Salvesta ja vali',
     noMelodiesMsg: 'Helinate nimekiri on tühi. Klõpsake "Laadi laul üles", et lisada helin.',
     noMelodySelected: 'Helinat pole valitud',
+    noMusicToRing: 'Ei saa helistada: laadige üles vähemalt üks meloodia',
+    noMelodiesDashboard: 'Meloodiaid pole lisatud. Kellade helistamiseks lisage helifail jaotises "Helinad".',
 
     trackClassic: 'Koolikell (klassikaline)',
     trackWestminster: 'Westminsteri kellamäng',

@@ -101,44 +101,7 @@ export class AppStore {
   }
 
   private loadData(): AppData {
-    const defaultSounds: SoundItem[] = [
-      {
-        id: 'classic_bell',
-        name: 'Классический школьный звонок',
-        filename: 'classic_bell.wav',
-        filePath: path.join(__dirname, '../../assets/sounds/classic_bell.wav'),
-        duration: 6.0,
-        isDefault: true,
-        fileType: 'wav'
-      },
-      {
-        id: 'melodic_chime',
-        name: 'Мелодичный перезвон (Вестминстер)',
-        filename: 'melodic_chime.wav',
-        filePath: path.join(__dirname, '../../assets/sounds/melodic_chime.wav'),
-        duration: 5.2,
-        isDefault: true,
-        fileType: 'wav'
-      },
-      {
-        id: 'gentle_gong',
-        name: 'Мягкий школьный гонг',
-        filename: 'gentle_gong.wav',
-        filePath: path.join(__dirname, '../../assets/sounds/gentle_gong.wav'),
-        duration: 5.0,
-        isDefault: true,
-        fileType: 'wav'
-      },
-      {
-        id: 'upbeat_marimba',
-        name: 'Современная маримба',
-        filename: 'upbeat_marimba.wav',
-        filePath: path.join(__dirname, '../../assets/sounds/upbeat_marimba.wav'),
-        duration: 3.6,
-        isDefault: true,
-        fileType: 'wav'
-      }
-    ];
+    const defaultSounds: SoundItem[] = [];
 
     const defaultBells: BellItem[] = [
       {
@@ -292,7 +255,7 @@ export class AppStore {
       schoolName: 'Koolikell — Школа',
       defaultBellDuration: 10,
       defaultDurationMode: 'custom',
-      defaultSoundId: 'melodic_chime',
+      defaultSoundId: '',
       masterVolume: 100,
       testBellDuration: 5,
       playChimeBeforeBell: false,
@@ -303,10 +266,17 @@ export class AppStore {
       try {
         const content = fs.readFileSync(this.dataFilePath, 'utf-8');
         const parsed = JSON.parse(content);
+        const legacyDefaultIds = ['classic_bell', 'melodic_chime', 'gentle_gong', 'upbeat_marimba', 't1', 't2', 't3', 't4'];
+        const validCustomSounds = (parsed.sounds || []).filter(
+          (s: SoundItem) =>
+            !s.isDefault &&
+            !legacyDefaultIds.includes(s.id) &&
+            fs.existsSync(s.filePath)
+        );
+
         return {
           bells: parsed.bells || defaultBells,
-          // Always ensure default built-in sounds are present with valid paths
-          sounds: this.mergeSounds(defaultSounds, parsed.sounds || []),
+          sounds: validCustomSounds,
           settings: { ...defaultSettings, ...(parsed.settings || {}) }
         };
       } catch (e) {
@@ -316,18 +286,13 @@ export class AppStore {
 
     return {
       bells: defaultBells,
-      sounds: defaultSounds,
+      sounds: [],
       settings: defaultSettings
     };
   }
 
-  private mergeSounds(defaultSounds: SoundItem[], customSounds: SoundItem[]): SoundItem[] {
-    const list = [...defaultSounds];
-    for (const s of customSounds) {
-      if (!list.some(item => item.id === s.id)) {
-        list.push(s);
-      }
-    }
-    return list;
+  private mergeSounds(_defaultSounds: SoundItem[], customSounds: SoundItem[]): SoundItem[] {
+    const legacyDefaultIds = ['classic_bell', 'melodic_chime', 'gentle_gong', 'upbeat_marimba', 't1', 't2', 't3', 't4'];
+    return (customSounds || []).filter((s) => !s.isDefault && !legacyDefaultIds.includes(s.id));
   }
 }

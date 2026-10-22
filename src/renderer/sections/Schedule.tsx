@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import {
   Plus,
   Trash2,
@@ -52,6 +52,9 @@ export function Schedule({
   // Modal state
   const [modalDay, setModalDay] = useState<string | null>(null);
   const [editingBell, setEditingBell] = useState<BellTime | null>(null);
+  const [draggedBell, setDraggedBell] = useState<{ dayName: string; bellId: string } | null>(null);
+  const [dragOverBellId, setDragOverBellId] = useState<string | null>(null);
+  const isDraggingRef = useRef<boolean>(false);
 
   const toggleDay = (day: string) => setExpandedDay(expandedDay === day ? '' : day);
 
@@ -79,6 +82,20 @@ export function Schedule({
     onUpdate(
       schedules.map((s) => (s.day === dayName ? { ...s, ...updates } : s)),
     );
+  };
+
+  const reorderBells = (dayName: string, sourceId: string, targetId: string) => {
+    if (sourceId === targetId) return;
+    const day = schedules.find((s) => s.day === dayName);
+    if (!day) return;
+    const sourceIndex = day.bells.findIndex((b) => b.id === sourceId);
+    const targetIndex = day.bells.findIndex((b) => b.id === targetId);
+    if (sourceIndex === -1 || targetIndex === -1) return;
+
+    const newBells = [...day.bells];
+    const [moved] = newBells.splice(sourceIndex, 1);
+    newBells.splice(targetIndex, 0, moved);
+    updateDay(dayName, { bells: newBells });
   };
 
   const updateBell = (dayName: string, bellId: string, updates: Partial<BellTime>) => {
@@ -181,7 +198,33 @@ export function Schedule({
                       return (
                         <div
                           key={bell.id}
-                          className="flex items-center gap-3 p-2.5 bg-slate-50 dark:bg-[#131d31] rounded-xl border border-slate-200/70 dark:border-[#1e293b]"
+                          onDragOver={(e) => {
+                            e.preventDefault();
+                            e.dataTransfer.dropEffect = 'move';
+                            if (dragOverBellId !== bell.id) {
+                              setDragOverBellId(bell.id);
+                            }
+                          }}
+                          onDragLeave={() => {
+                            if (dragOverBellId === bell.id) {
+                              setDragOverBellId(null);
+                            }
+                          }}
+                          onDrop={(e) => {
+                            e.preventDefault();
+                            if (draggedBell && draggedBell.dayName === day.day) {
+                              reorderBells(day.day, draggedBell.bellId, bell.id);
+                            }
+                            setDraggedBell(null);
+                            setDragOverBellId(null);
+                          }}
+                          className={`flex items-center gap-3 p-2.5 bg-slate-50 dark:bg-[#131d31] rounded-xl border transition-all ${
+                            dragOverBellId === bell.id
+                              ? 'border-[#185d9e] bg-[#185d9e]/10 shadow-sm ring-1 ring-[#185d9e]'
+                              : draggedBell?.bellId === bell.id
+                              ? 'opacity-40 border-dashed border-[#185d9e]'
+                              : 'border-slate-200/70 dark:border-[#1e293b]'
+                          }`}
                         >
                           <button
                             onClick={() => onTogglePlay(bell.id, bell)}
@@ -195,15 +238,31 @@ export function Schedule({
                           </button>
 
                           <button
-                            onClick={() =>
+                            type="button"
+                            draggable={true}
+                            onDragStart={(e) => {
+                              isDraggingRef.current = true;
+                              e.dataTransfer.setData('text/plain', bell.id);
+                              e.dataTransfer.effectAllowed = 'move';
+                              setDraggedBell({ dayName: day.day, bellId: bell.id });
+                            }}
+                            onDragEnd={() => {
+                              setDraggedBell(null);
+                              setDragOverBellId(null);
+                              setTimeout(() => {
+                                isDraggingRef.current = false;
+                              }, 120);
+                            }}
+                            onClick={() => {
+                              if (isDraggingRef.current) return;
                               updateBell(day.day, bell.id, {
                                 type: bell.type === 'start' ? 'end' : 'start',
-                              })
-                            }
-                            className={`w-2.5 h-7 rounded-full cursor-pointer transition-colors ${
+                              });
+                            }}
+                            className={`w-2.5 h-7 rounded-full cursor-grab active:cursor-grabbing hover:scale-125 transition-all select-none shadow-xs ${
                               bell.type === 'start' ? 'bg-emerald-500 hover:bg-emerald-600' : 'bg-amber-500 hover:bg-amber-600'
                             }`}
-                            title={bell.type === 'start' ? t.startLesson : t.endLesson}
+                            title={`${bell.type === 'start' ? t.startLesson : t.endLesson} — ${t.dragToReorder}`}
                           />
 
                           <input

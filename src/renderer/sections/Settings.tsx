@@ -12,6 +12,7 @@ interface SettingsSectionProps {
   onAudioOutputDeviceIdChange: (val: string) => void;
   onTestSound: () => void;
   isTestingSound?: boolean;
+  hasTracks?: boolean;
   currentLang: Language;
   onLangChange: (lang: Language) => void;
   onSave: () => void;
@@ -27,6 +28,7 @@ export function SettingsSection({
   onAudioOutputDeviceIdChange,
   onTestSound,
   isTestingSound,
+  hasTracks = true,
   currentLang,
   onLangChange,
   onSave,
@@ -133,11 +135,15 @@ export function SettingsSection({
             </button>
             <button
               type="button"
-              onClick={onTestSound}
-              className={`px-3 py-1.5 rounded-lg text-xs font-semibold inline-flex items-center gap-1.5 transition-all cursor-pointer border ${
-                isTestingSound
-                  ? 'bg-[#185d9e] text-white border-[#185d9e] shadow-xs animate-pulse'
-                  : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-[#185d9e] hover:text-white hover:border-[#185d9e]'
+              onClick={hasTracks ? onTestSound : undefined}
+              disabled={!hasTracks}
+              title={!hasTracks ? t.noMusicToRing : t.testSoundBtn}
+              className={`px-3 py-1.5 rounded-lg text-xs font-semibold inline-flex items-center gap-1.5 transition-all border ${
+                !hasTracks
+                  ? 'bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-600 border-slate-200 dark:border-slate-700 cursor-not-allowed opacity-60'
+                  : isTestingSound
+                  ? 'bg-[#185d9e] text-white border-[#185d9e] shadow-xs animate-pulse cursor-pointer'
+                  : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-[#185d9e] hover:text-white hover:border-[#185d9e] cursor-pointer'
               }`}
             >
               <Volume2 className="w-3.5 h-3.5" />

@@ -129,41 +129,4 @@ export interface MusicTrack {
   fileType?: string;
 }
 
-export const defaultBuiltInTracks: MusicTrack[] = [
-  {
-    id: 't1',
-    name: 'Классический школьный звонок',
-    duration: '0:06',
-    durationSec: 6,
-    filePath: 'classic_bell.wav',
-    selected: true,
-    isDefault: true,
-  },
-  {
-    id: 't2',
-    name: 'Мелодичный перезвон (Вестминстер)',
-    duration: '0:05',
-    durationSec: 5,
-    filePath: 'melodic_chime.wav',
-    selected: false,
-    isDefault: true,
-  },
-  {
-    id: 't3',
-    name: 'Мягкий школьный гонг',
-    duration: '0:05',
-    durationSec: 5,
-    filePath: 'gentle_gong.wav',
-    selected: false,
-    isDefault: true,
-  },
-  {
-    id: 't4',
-    name: 'Современная маримба',
-    duration: '0:04',
-    durationSec: 4,
-    filePath: 'upbeat_marimba.wav',
-    selected: false,
-    isDefault: true,
-  },
-];
+export const defaultBuiltInTracks: MusicTrack[] = [];

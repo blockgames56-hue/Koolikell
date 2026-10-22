@@ -116,8 +116,9 @@ function setupTray(): void {
     const logoPath = getAppLogoPath();
     if (!logoPath) return;
     const { nativeImage } = require('electron');
-    const iconImage = nativeImage.createFromPath(logoPath).resize({ width: 16, height: 16 });
-    tray = new Tray(iconImage);
+    const iconImage = nativeImage.createFromPath(logoPath);
+    if (!iconImage || iconImage.isEmpty()) return;
+    tray = new Tray(iconImage.resize({ width: 16, height: 16 }));
     const contextMenu = Menu.buildFromTemplate([
       {
         label: 'Открыть Koolikell',
@@ -198,7 +199,55 @@ function registerAudioProtocol(): void {
       }
 
       if (resolvedPath && fs.existsSync(resolvedPath)) {
-        return net.fetch(pathToFileURL(resolvedPath).toString());
+        const stat = fs.statSync(resolvedPath);
+        const fileSize = stat.size;
+        const rangeHeader = request.headers.get('range');
+
+        const ext = path.extname(resolvedPath).toLowerCase();
+        const mimeTypes: Record<string, string> = {
+          '.mp3': 'audio/mpeg',
+          '.wav': 'audio/wav',
+          '.ogg': 'audio/ogg',
+          '.m4a': 'audio/mp4',
+          '.aac': 'audio/aac',
+          '.flac': 'audio/flac',
+        };
+        const contentType = mimeTypes[ext] || 'audio/mpeg';
+        const { Readable } = require('stream');
+
+        if (rangeHeader) {
+          const parts = rangeHeader.replace(/bytes=/, '').split('-');
+          const start = parseInt(parts[0], 10);
+          const end = parts[1] ? parseInt(parts[1], 10) : fileSize - 1;
+
+          if (!isNaN(start) && start < fileSize) {
+            const safeEnd = Math.min(isNaN(end) ? fileSize - 1 : end, fileSize - 1);
+            const chunkSize = safeEnd - start + 1;
+            const nodeStream = fs.createReadStream(resolvedPath, { start, end: safeEnd });
+            const webStream = Readable.toWeb(nodeStream);
+
+            return new Response(webStream as any, {
+              status: 206,
+              headers: {
+                'Content-Range': `bytes ${start}-${safeEnd}/${fileSize}`,
+                'Accept-Ranges': 'bytes',
+                'Content-Length': String(chunkSize),
+                'Content-Type': contentType,
+              }
+            });
+          }
+        }
+
+        const nodeStream = fs.createReadStream(resolvedPath);
+        const webStream = Readable.toWeb(nodeStream);
+        return new Response(webStream as any, {
+          status: 200,
+          headers: {
+            'Content-Length': String(fileSize),
+            'Accept-Ranges': 'bytes',
+            'Content-Type': contentType,
+          }
+        });
       }
 
       console.warn('Audio file not found on disk:', targetPath);

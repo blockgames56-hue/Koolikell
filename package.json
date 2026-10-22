@@ -28,6 +28,12 @@
       ],
       "icon": "assets/logo.png"
     },
+    "extraResources": [
+      {
+        "from": "assets",
+        "to": "assets"
+      }
+    ],
     "files": [
       "dist/**/*",
       "assets/**/*",

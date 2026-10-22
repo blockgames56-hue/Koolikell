@@ -1,6 +1,7 @@
 import {
   Square,
-  Bell
+  Bell,
+  AlertTriangle,
 } from 'lucide-react';
 import { type DaySchedule } from '@/types';
 import { type Translations } from '@/i18n';
@@ -8,6 +9,7 @@ import { type Translations } from '@/i18n';
 interface DashboardProps {
   schedules: DaySchedule[];
   bellTrackName: string;
+  hasTracks: boolean;
   bellDuration?: number;
   autoStart: boolean;
   shortenedActive: boolean;
@@ -16,18 +18,21 @@ interface DashboardProps {
   isPlaying: boolean;
   onManualBell?: () => void;
   onStopBell: () => void;
+  onNavigateToBells?: () => void;
   t: Translations;
 }
 
 export function Dashboard({
   schedules,
   bellTrackName,
+  hasTracks,
   shortenedActive,
   nextBellCountdown,
   nextBellInfo,
   isPlaying,
   onManualBell,
   onStopBell,
+  onNavigateToBells,
   t,
 }: DashboardProps) {
   const today = new Date();
@@ -52,14 +57,41 @@ export function Dashboard({
           </button>
         ) : (
           <button
-            onClick={onManualBell}
-            className="flex items-center gap-2 px-4 py-2 bg-[#185d9e] hover:bg-[#154f86] text-white rounded-xl text-sm font-semibold shadow-md shadow-[#185d9e]/20 transition-all cursor-pointer"
+            onClick={hasTracks ? onManualBell : undefined}
+            disabled={!hasTracks}
+            title={!hasTracks ? t.noMusicToRing : t.ringNow}
+            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold shadow-md transition-all ${
+              hasTracks
+                ? 'bg-[#185d9e] hover:bg-[#154f86] text-white shadow-[#185d9e]/20 cursor-pointer active:scale-95'
+                : 'bg-slate-300 dark:bg-slate-800 text-slate-500 dark:text-slate-500 cursor-not-allowed opacity-60 shadow-none'
+            }`}
           >
             <Bell className="w-4 h-4" />
             {t.ringNow}
           </button>
         )}
       </div>
+
+      {/* Warning Banner if No Melodies Uploaded */}
+      {!hasTracks && (
+        <div className="p-4 rounded-2xl bg-amber-50/90 dark:bg-amber-950/25 border border-amber-200/90 dark:border-amber-800/40 text-amber-900 dark:text-amber-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs shadow-xs animate-fade-in">
+          <div className="flex items-center gap-2.5">
+            <AlertTriangle className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0" />
+            <span className="font-semibold">
+              {t.noMusicToRing}. {t.noMelodiesDashboard}
+            </span>
+          </div>
+          {onNavigateToBells && (
+            <button
+              type="button"
+              onClick={onNavigateToBells}
+              className="px-3.5 py-1.5 rounded-xl font-bold bg-[#185d9e] hover:bg-[#134b7f] text-white shrink-0 transition-all cursor-pointer shadow-xs self-start sm:self-center"
+            >
+              {t.uploadSong}
+            </button>
+          )}
+        </div>
+      )}
 
       {/* Sleek Status Banner */}
       <div className="card p-5 bg-gradient-to-r from-[#185d9e] to-[#124270] text-white border-0 shadow-md">
@@ -99,14 +131,31 @@ export function Dashboard({
       <div className="grid lg:grid-cols-2 gap-4">
         {/* Selected melody info */}
         <div className="card p-4">
-          <h3 className="text-xs font-bold uppercase tracking-wider text-slate-600 mb-3">
+          <h3 className="text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-300 mb-3">
             {t.mainMelody}
           </h3>
-          <div className="flex items-center justify-between p-3 rounded-xl bg-slate-50 border border-slate-200/60">
-            <span className="text-sm font-semibold text-slate-800 truncate">
-              {bellTrackName}
-            </span>
-          </div>
+          {hasTracks ? (
+            <div className="flex items-center justify-between p-3 rounded-xl bg-slate-50 dark:bg-[#131d31] border border-slate-200/60 dark:border-[#1e293b]">
+              <span className="text-sm font-semibold text-slate-800 dark:text-white truncate">
+                {bellTrackName || t.noMelodySelected}
+              </span>
+            </div>
+          ) : (
+            <div className="p-3.5 rounded-xl bg-amber-50/90 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800/40 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+              <span className="text-xs font-medium text-amber-800 dark:text-amber-300">
+                {t.noMelodiesDashboard}
+              </span>
+              {onNavigateToBells && (
+                <button
+                  type="button"
+                  onClick={onNavigateToBells}
+                  className="px-3 py-1.5 rounded-lg text-xs font-bold bg-[#185d9e] hover:bg-[#134b7f] text-white shrink-0 transition-colors shadow-xs cursor-pointer"
+                >
+                  {t.uploadSong}
+                </button>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Week Overview */}

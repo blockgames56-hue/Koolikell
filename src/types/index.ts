@@ -60,6 +60,7 @@ export interface IpcApi {
   openAudioFolder: () => void;
   readAudioBase64?: (filePath: string) => Promise<string | null>;
   onTriggerBell: (callback: (bell: BellItem) => void) => () => void;
+  onHeartbeat?: (callback: () => void) => () => void;
 }
 
 declare global {

@@ -3,7 +3,8 @@ import {
   Play,
   Pause,
   Trash2,
-  Music
+  Music,
+  Scissors,
 } from 'lucide-react';
 import { type MusicTrack } from '@/types';
 import { type Translations } from '@/i18n';
@@ -21,6 +22,7 @@ interface BellSoundsProps {
   onDeleteTrack: (id: string) => void;
   onUploadTrack: () => void;
   onUpdateTrack: (track: MusicTrack) => void;
+  onEditTrack?: (track: MusicTrack) => void;
   playingId: string | null;
   onTogglePlay: (id: string) => void;
   t: Translations;
@@ -34,6 +36,7 @@ export function BellSounds({
   onVolumeChange,
   onDeleteTrack,
   onUploadTrack,
+  onEditTrack,
   playingId,
   onTogglePlay,
   t,
@@ -145,6 +148,16 @@ export function BellSounds({
                     >
                       {isSelected ? t.selectedBtn : t.selectBtn}
                     </button>
+
+                    {onEditTrack && (
+                      <button
+                        onClick={() => onEditTrack(track)}
+                        className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:text-[#185d9e] hover:bg-slate-100 transition-all cursor-pointer"
+                        title={t.snippetBtn}
+                      >
+                        <Scissors className="w-4 h-4" />
+                      </button>
+                    )}
 
                     <button
                       onClick={() => onDeleteTrack(track.id)}

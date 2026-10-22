@@ -15,7 +15,6 @@ import {
   daysOfWeek,
   defaultBells,
   defaultShortenedBells,
-  defaultBuiltInTracks,
   normalizeTime,
 } from '@/types';
 import { translations, type Language } from '@/i18n';
@@ -52,9 +51,9 @@ export function App() {
     localStorage.removeItem('koolikell_theme');
   }, []);
 
-  // Bell tracks state - initialized with built-in sounds so sound is ALWAYS available
-  const [bellTracks, setBellTracks] = useState<MusicTrack[]>(defaultBuiltInTracks);
-  const [selectedBellTrack, setSelectedBellTrack] = useState<string>('t1');
+  // Bell tracks state - only user-uploaded melodies
+  const [bellTracks, setBellTracks] = useState<MusicTrack[]>([]);
+  const [selectedBellTrack, setSelectedBellTrack] = useState<string>('');
   const [bellDuration, setBellDuration] = useState(15);
   const [bellVolume, setBellVolume] = useState(80);
   const [bellRepeat, setBellRepeat] = useState(false);
@@ -154,75 +153,116 @@ export function App() {
     return audio;
   };
 
-  // Preload default tracks immediately on start so there is 0ms playback latency
+  // Load persistent state and sync with backend custom_audio store
   useEffect(() => {
-    defaultBuiltInTracks.forEach((tr) => {
-      const src = getAudioSourceUrl(tr);
-      getOrCreateAudio(src);
-    });
-  }, []);
+    const initApp = async () => {
+      let savedTracks: MusicTrack[] = [];
+      let savedSelected = '';
+      const legacyDefaultIds = ['t1', 't2', 't3', 't4', 'classic_bell', 'melodic_chime', 'gentle_gong', 'upbeat_marimba'];
 
-  // Load persistent state
-  useEffect(() => {
-    const saved = localStorage.getItem('koolikell_state_v5') || localStorage.getItem('koolikell_state_v4');
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved);
-        if (parsed.bellTracks && Array.isArray(parsed.bellTracks)) {
-          const userOnly = parsed.bellTracks.filter((t: MusicTrack) => !t.isDefault);
-          const combined = [...defaultBuiltInTracks, ...userOnly];
-          setBellTracks(combined);
-          if (parsed.selectedBellTrack && combined.some((t: MusicTrack) => t.id === parsed.selectedBellTrack)) {
-            setSelectedBellTrack(parsed.selectedBellTrack);
-          } else {
-            setSelectedBellTrack('t1');
+      const saved = localStorage.getItem('koolikell_state_v6') || localStorage.getItem('koolikell_state_v5');
+      if (saved) {
+        try {
+          const parsed = JSON.parse(saved);
+          if (parsed.bellTracks && Array.isArray(parsed.bellTracks)) {
+            savedTracks = parsed.bellTracks.filter(
+              (t: MusicTrack) => !t.isDefault && !legacyDefaultIds.includes(t.id)
+            );
           }
-        } else {
-          setBellTracks(defaultBuiltInTracks);
-          setSelectedBellTrack('t1');
-        }
-
-        if (parsed.bellDuration) setBellDuration(parsed.bellDuration);
-        if (parsed.bellVolume !== undefined) setBellVolume(parsed.bellVolume);
-        if (parsed.bellRepeat !== undefined) setBellRepeat(parsed.bellRepeat);
-
-        if (parsed.schedules && Array.isArray(parsed.schedules)) {
-          let loaded = parsed.schedules;
-          if (loaded.length < daysOfWeek.length) {
-            const missing = daysOfWeek.slice(loaded.length).map((day) => ({
-              day,
-              dayShort: day.slice(0, 3),
-              enabled: false,
-              bells: [],
-            }));
-            loaded = [...loaded, ...missing];
+          if (parsed.selectedBellTrack && !legacyDefaultIds.includes(parsed.selectedBellTrack)) {
+            savedSelected = parsed.selectedBellTrack;
           }
-          setSchedules(loaded);
-        }
 
-        if (parsed.shortenedSchedules && Array.isArray(parsed.shortenedSchedules)) {
-          let loaded = parsed.shortenedSchedules;
-          if (loaded.length < daysOfWeek.length) {
-            const missing = daysOfWeek.slice(loaded.length).map((day) => ({
-              day,
-              dayShort: day.slice(0, 3),
-              enabled: false,
-              bells: [],
-            }));
-            loaded = [...loaded, ...missing];
+          if (parsed.bellDuration) setBellDuration(parsed.bellDuration);
+          if (parsed.bellVolume !== undefined) setBellVolume(parsed.bellVolume);
+          if (parsed.bellRepeat !== undefined) setBellRepeat(parsed.bellRepeat);
+
+          if (parsed.schedules && Array.isArray(parsed.schedules)) {
+            let loaded = parsed.schedules;
+            if (loaded.length < daysOfWeek.length) {
+              const missing = daysOfWeek.slice(loaded.length).map((day) => ({
+                day,
+                dayShort: day.slice(0, 3),
+                enabled: false,
+                bells: [],
+              }));
+              loaded = [...loaded, ...missing];
+            }
+            setSchedules(loaded);
           }
-          setShortenedSchedules(loaded);
-        }
 
-        if (parsed.shortenedEnabled !== undefined) setShortenedEnabled(parsed.shortenedEnabled);
-        if (parsed.autoStart !== undefined) setAutoStart(parsed.autoStart);
-        if (parsed.systemVolume !== undefined) setSystemVolume(parsed.systemVolume);
-        if (parsed.weekendsOff !== undefined) setWeekendsOff(parsed.weekendsOff);
-        if (parsed.audioOutputDeviceId !== undefined) setAudioOutputDeviceId(parsed.audioOutputDeviceId);
-      } catch (e) {
-        console.error('Error restoring state from localStorage:', e);
+          if (parsed.shortenedSchedules && Array.isArray(parsed.shortenedSchedules)) {
+            let loaded = parsed.shortenedSchedules;
+            if (loaded.length < daysOfWeek.length) {
+              const missing = daysOfWeek.slice(loaded.length).map((day) => ({
+                day,
+                dayShort: day.slice(0, 3),
+                enabled: false,
+                bells: [],
+              }));
+              loaded = [...loaded, ...missing];
+            }
+            setShortenedSchedules(loaded);
+          }
+
+          if (parsed.shortenedEnabled !== undefined) setShortenedEnabled(parsed.shortenedEnabled);
+          if (parsed.autoStart !== undefined) setAutoStart(parsed.autoStart);
+          if (parsed.systemVolume !== undefined) setSystemVolume(parsed.systemVolume);
+          if (parsed.weekendsOff !== undefined) setWeekendsOff(parsed.weekendsOff);
+          if (parsed.audioOutputDeviceId !== undefined) setAudioOutputDeviceId(parsed.audioOutputDeviceId);
+        } catch (e) {
+          console.error('Error restoring state from localStorage:', e);
+        }
       }
-    }
+
+      // Sync user uploaded sounds from backend store (persistent files in custom_audio)
+      if (window.koolikellApi?.getData) {
+        try {
+          const data = await window.koolikellApi.getData();
+          if (data && Array.isArray(data.sounds)) {
+            const backendSounds = data.sounds.filter(
+              (s) => !s.isDefault && !legacyDefaultIds.includes(s.id)
+            );
+            const merged: MusicTrack[] = [];
+            for (const bs of backendSounds) {
+              const existing = savedTracks.find((st) => st.id === bs.id);
+              if (existing) {
+                merged.push({
+                  ...existing,
+                  name: existing.name || bs.name,
+                  filePath: bs.filePath || existing.filePath,
+                });
+              } else {
+                merged.push({
+                  id: bs.id,
+                  name: bs.name,
+                  duration: bs.duration ? `${Math.floor(bs.duration / 60)}:${String(Math.round(bs.duration % 60)).padStart(2, '0')}` : '0:30',
+                  durationSec: bs.duration || 30,
+                  filePath: bs.filePath,
+                  selected: false,
+                  isDefault: false,
+                  fileType: bs.fileType,
+                });
+              }
+            }
+            savedTracks = merged;
+          }
+        } catch (err) {
+          console.warn('Could not sync sounds from backend store:', err);
+        }
+      }
+
+      setBellTracks(savedTracks);
+      if (savedSelected && savedTracks.some((t) => t.id === savedSelected)) {
+        setSelectedBellTrack(savedSelected);
+      } else if (savedTracks.length > 0) {
+        setSelectedBellTrack(savedTracks[0].id);
+      } else {
+        setSelectedBellTrack('');
+      }
+    };
+
+    initApp();
 
     if (window.koolikellApi?.getAutoStartStatus) {
       window.koolikellApi.getAutoStartStatus().then((status) => {
@@ -247,7 +287,7 @@ export function App() {
       weekendsOff,
       audioOutputDeviceId,
     };
-    localStorage.setItem('koolikell_state_v5', JSON.stringify(state));
+    localStorage.setItem('koolikell_state_v6', JSON.stringify(state));
   };
 
   useEffect(() => {
@@ -291,7 +331,6 @@ export function App() {
     if (audioRef.current) {
       try {
         audioRef.current.pause();
-        audioRef.current.currentTime = 0;
       } catch (e) {}
       audioRef.current = null;
     }
@@ -344,23 +383,6 @@ export function App() {
         let playStartTime: number | null = null;
         let fadeWatcherStarted = false;
 
-        const applySeek = () => {
-          if (startOffsetSec > 0) {
-            try {
-              const maxSeek = audio.duration ? Math.max(0, audio.duration - 0.5) : startOffsetSec;
-              audio.currentTime = Math.min(startOffsetSec, maxSeek);
-            } catch (e) {
-              console.warn('[Audio] Could not set currentTime:', e);
-            }
-          }
-        };
-
-        if (audio.readyState >= 1) {
-          applySeek();
-        } else {
-          audio.addEventListener('loadedmetadata', applySeek, { once: true });
-        }
-
         const startFadeWatcher = () => {
           if (fadeWatcherStarted) return;
           fadeWatcherStarted = true;
@@ -383,9 +405,10 @@ export function App() {
               if (timeUntilCutoff <= 0) {
                 stopAllAudio();
               } else if (timeUntilCutoff <= fadeDurationSec) {
-                // Smooth linear fade-out to 0
+                // Smooth sinusoidal fade-out without abrupt clicks or volume glitches
                 const progress = Math.max(0, Math.min(1, timeUntilCutoff / fadeDurationSec));
-                audio.volume = Math.max(0, Math.min(1, effectiveVol * progress));
+                const smoothFactor = Math.sin((progress * Math.PI) / 2);
+                audio.volume = Math.max(0, Math.min(1, effectiveVol * smoothFactor));
               } else {
                 audio.volume = effectiveVol;
               }
@@ -397,7 +420,35 @@ export function App() {
           }
         };
 
-        audio.addEventListener('playing', startFadeWatcher, { once: true });
+        const beginPlayback = () => {
+          if (startOffsetSec > 0) {
+            try {
+              const maxSeek = audio.duration ? Math.max(0, audio.duration - 0.5) : startOffsetSec;
+              audio.currentTime = Math.min(startOffsetSec, maxSeek);
+            } catch (e) {
+              console.warn('[Audio] Could not set currentTime:', e);
+            }
+          }
+
+          const playPromise = audio.play();
+          if (playPromise !== undefined) {
+            playPromise
+              .then(() => {
+                startFadeWatcher();
+                if (!resolved) {
+                  resolved = true;
+                  resolve(true);
+                }
+              })
+              .catch((e) => {
+                console.warn('[Audio] audio.play() rejected:', e);
+                if (!resolved) {
+                  resolved = true;
+                  resolve(false);
+                }
+              });
+          }
+        };
 
         audio.onended = () => {
           if (!loopMode) {
@@ -413,23 +464,14 @@ export function App() {
           }
         };
 
-        const playPromise = audio.play();
-        if (playPromise !== undefined) {
-          playPromise
-            .then(() => {
-              startFadeWatcher();
-              if (!resolved) {
-                resolved = true;
-                resolve(true);
-              }
-            })
-            .catch((e) => {
-              console.warn('[Audio] audio.play() rejected:', e);
-              if (!resolved) {
-                resolved = true;
-                resolve(false);
-              }
-            });
+        if (startOffsetSec > 0) {
+          if (audio.readyState >= 1) {
+            beginPlayback();
+          } else {
+            audio.addEventListener('loadedmetadata', beginPlayback, { once: true });
+          }
+        } else {
+          beginPlayback();
         }
       });
     };
@@ -439,6 +481,7 @@ export function App() {
 
     // 2. Base64 fallback if primary failed
     if (!success && window.koolikellApi?.readAudioBase64) {
+      stopAllAudio();
       const soundFileOrPath = track.filePath || (
         track.id === 't2' ? 'melodic_chime.wav'
         : track.id === 't3' ? 'gentle_gong.wav'
@@ -457,14 +500,8 @@ export function App() {
       }
     }
 
-    // 3. Safety fallback to default built-in chime so a bell NEVER fails to ring silently
-    if (!success && primaryUrl !== getAudioSourceUrl(defaultBuiltInTracks[0])) {
-      try {
-        console.log('[Audio] Falling back to default built-in track');
-        await setupAndPlay(getAudioSourceUrl(defaultBuiltInTracks[0]));
-      } catch (e) {
-        stopAllAudio();
-      }
+    if (!success) {
+      stopAllAudio();
     }
   };
 
@@ -474,8 +511,12 @@ export function App() {
       setIsTestingSound(false);
       return;
     }
+    const track = bellTracks.find((t) => t.id === selectedBellTrack) || bellTracks[0];
+    if (!track) {
+      console.warn('Cannot test sound: No audio tracks uploaded.');
+      return;
+    }
     setIsTestingSound(true);
-    const track = bellTracks[0] || defaultBuiltInTracks[0];
     playTrackAudio(track, 3, 100, false, 0, 'test_sound');
     setTimeout(() => {
       setIsTestingSound(false);
@@ -500,8 +541,7 @@ export function App() {
     if (bell) {
       const targetTrack = (bell.trackId && bellTracks.find((t) => t.id === bell.trackId))
         || bellTracks.find((t) => t.id === selectedBellTrack)
-        || bellTracks[0]
-        || defaultBuiltInTracks[0];
+        || bellTracks[0];
       if (targetTrack) {
         const dur = bell.durationSec ?? targetTrack.playDurationSec ?? bellDuration;
         const offset = bell.startOffsetSec ?? targetTrack.startOffsetSec ?? 0;
@@ -515,8 +555,7 @@ export function App() {
     const foundBell = allBells.find((b) => b.id === id);
     const targetTrack = (foundBell?.trackId && bellTracks.find((t) => t.id === foundBell.trackId))
       || bellTracks.find((t) => t.id === selectedBellTrack)
-      || bellTracks[0]
-      || defaultBuiltInTracks[0];
+      || bellTracks[0];
 
     if (targetTrack) {
       const dur = foundBell?.durationSec ?? targetTrack.playDurationSec ?? bellDuration;
@@ -544,14 +583,26 @@ export function App() {
             fileType: uploaded.fileType,
           };
 
+          // Immediately save into tracks so the track is available right away
+          setBellTracks((prev) => {
+            const next = [...prev.filter((t) => t.id !== newTrack.id), newTrack];
+            return next;
+          });
+          setSelectedBellTrack(newTrack.id);
+
           const tempAudio = new Audio(getAudioSourceUrl(newTrack));
           tempAudio.onloadedmetadata = () => {
             const sec = Math.round(tempAudio.duration);
             const m = Math.floor(sec / 60);
             const s = sec % 60;
-            newTrack.duration = `${m}:${String(s).padStart(2, '0')}`;
-            newTrack.durationSec = sec;
-            setPendingTrimTrack(newTrack);
+            const updated = {
+              ...newTrack,
+              duration: `${m}:${String(s).padStart(2, '0')}`,
+              durationSec: sec,
+              playDurationSec: Math.min(sec, 15),
+            };
+            setBellTracks((prev) => prev.map((t) => (t.id === newTrack.id ? updated : t)));
+            setPendingTrimTrack(updated);
           };
           tempAudio.onerror = () => {
             setPendingTrimTrack(newTrack);
@@ -565,10 +616,13 @@ export function App() {
 
   const handleSaveTrimmedTrack = (trimmed: MusicTrack) => {
     setBellTracks((prev) => {
-      const updated = [...prev, trimmed];
-      setSelectedBellTrack(trimmed.id);
-      return updated;
+      const exists = prev.some((t) => t.id === trimmed.id);
+      if (exists) {
+        return prev.map((t) => (t.id === trimmed.id ? trimmed : t));
+      }
+      return [...prev, trimmed];
     });
+    setSelectedBellTrack(trimmed.id);
     setPendingTrimTrack(null);
   };
 
@@ -576,11 +630,18 @@ export function App() {
     setBellTracks((prev) => prev.map((t) => (t.id === updated.id ? updated : t)));
   };
 
-  const handleDeleteTrack = (id: string) => {
+  const handleDeleteTrack = async (id: string) => {
+    if (window.koolikellApi?.deleteAudioFile) {
+      try {
+        await window.koolikellApi.deleteAudioFile(id);
+      } catch (err) {
+        console.error('Failed to delete audio from backend:', err);
+      }
+    }
     setBellTracks((prev) => {
       const filtered = prev.filter((t) => t.id !== id);
       if (selectedBellTrack === id) {
-        setSelectedBellTrack(filtered[0]?.id || 't1');
+        setSelectedBellTrack(filtered[0]?.id || '');
       }
       return filtered;
     });
@@ -674,8 +735,7 @@ export function App() {
           const targetTrack =
             (bell.trackId && bellTracksRef.current.find((tr) => tr.id === bell.trackId)) ||
             bellTracksRef.current.find((tr) => tr.id === selectedBellTrackRef.current) ||
-            bellTracksRef.current[0] ||
-            defaultBuiltInTracks[0];
+            bellTracksRef.current[0];
 
           if (targetTrack) {
             const dur = Math.max(1, bell.durationSec ?? targetTrack.playDurationSec ?? bellDurationRef.current ?? 15);
@@ -717,16 +777,10 @@ export function App() {
   }, [t]);
 
   // Localized track names for display
-  const localizedTracks = bellTracks.map((tr) => {
-    if (tr.id === 't1') return { ...tr, name: t.trackClassic };
-    if (tr.id === 't2') return { ...tr, name: t.trackWestminster };
-    if (tr.id === 't3') return { ...tr, name: t.trackGong };
-    if (tr.id === 't4') return { ...tr, name: t.trackMarimba };
-    return tr;
-  });
+  const localizedTracks = bellTracks;
 
   const selectedBellName =
-    localizedTracks.find((t) => t.id === selectedBellTrack)?.name ?? localizedTracks[0]?.name ?? t.noMelodySelected;
+    bellTracks.find((t) => t.id === selectedBellTrack)?.name ?? bellTracks[0]?.name ?? t.noMelodySelected;
 
   return (
     <div className="flex flex-col h-screen bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-100 overflow-hidden">
@@ -781,6 +835,7 @@ export function App() {
               <Dashboard
                 schedules={shortenedEnabled ? shortenedSchedules : schedules}
                 bellTrackName={selectedBellName}
+                hasTracks={bellTracks.length > 0}
                 bellDuration={bellDuration}
                 autoStart={autoStart}
                 shortenedActive={shortenedEnabled}
@@ -788,14 +843,16 @@ export function App() {
                 nextBellInfo={nextBellInfo}
                 isPlaying={playingId !== null}
                 onManualBell={() => {
-                  const activeTrack = bellTracks.find((t) => t.id === selectedBellTrack) || bellTracks[0] || defaultBuiltInTracks[0];
-                  if (activeTrack) {
-                    const dur = activeTrack.playDurationSec ?? bellDuration;
-                    const offset = activeTrack.startOffsetSec ?? 0;
-                    playTrackAudio(activeTrack, dur, bellVolume, false, offset);
+                  const activeTrack = bellTracks.find((t) => t.id === selectedBellTrack) || bellTracks[0];
+                  if (!activeTrack) {
+                    return;
                   }
+                  const dur = activeTrack.playDurationSec ?? bellDuration;
+                  const offset = activeTrack.startOffsetSec ?? 0;
+                  playTrackAudio(activeTrack, dur, bellVolume, false, offset);
                 }}
                 onStopBell={stopAllAudio}
+                onNavigateToBells={() => setActiveSection('bell-sounds')}
                 t={t}
               />
             )}
@@ -814,6 +871,7 @@ export function App() {
                 onDeleteTrack={handleDeleteTrack}
                 onUploadTrack={handleUploadTrack}
                 onUpdateTrack={handleUpdateTrack}
+                onEditTrack={(track) => setPendingTrimTrack(track)}
                 playingId={playingId}
                 onTogglePlay={togglePlay}
                 t={t}
@@ -859,6 +917,7 @@ export function App() {
                 onAudioOutputDeviceIdChange={setAudioOutputDeviceId}
                 onTestSound={handleTestSound}
                 isTestingSound={isTestingSound}
+                hasTracks={bellTracks.length > 0}
                 currentLang={lang}
                 onLangChange={setLang}
                 onSave={saveStateToStorage}
