@@ -86,6 +86,14 @@ function createMainWindow(): BrowserWindow {
     console.error('Failed to load renderer HTML:', errorCode, errorDescription);
   });
 
+  win.webContents.on('console-message', (_event, level, message) => {
+    if (level >= 2) {
+      console.warn(`[Renderer] ${message}`);
+    } else {
+      console.log(`[Renderer] ${message}`);
+    }
+  });
+
   // Ensure window is in front and focused
   win.once('ready-to-show', () => {
     win.show();
@@ -165,27 +173,32 @@ function registerAudioProtocol(): void {
         return new Response('Missing path parameter', { status: 400 });
       }
 
+      let resolvedPath = '';
       if (fs.existsSync(targetPath)) {
-        return net.fetch(pathToFileURL(targetPath).toString());
+        resolvedPath = targetPath;
+      } else {
+        const soundFileName = path.basename(targetPath);
+        const candidates = [
+          path.join(process.resourcesPath || '', 'assets/sounds', soundFileName),
+          path.join(process.resourcesPath || '', 'assets', soundFileName),
+          path.join(app.getAppPath(), 'assets/sounds', soundFileName),
+          path.join(app.getAppPath(), 'assets', soundFileName),
+          path.join(__dirname, '../../assets/sounds', soundFileName),
+          path.join(__dirname, '../assets/sounds', soundFileName),
+          path.join(__dirname, '../../assets', soundFileName),
+          path.join(store ? store.getUserSoundsDir() : '', soundFileName),
+        ];
+
+        for (const cand of candidates) {
+          if (cand && fs.existsSync(cand)) {
+            resolvedPath = cand;
+            break;
+          }
+        }
       }
 
-      // Check fallback relative paths
-      const soundFileName = path.basename(targetPath);
-      const candidates = [
-        path.join(__dirname, '../../assets/sounds', soundFileName),
-        path.join(__dirname, '../assets/sounds', soundFileName),
-        path.join(__dirname, '../../assets', soundFileName),
-        path.join(process.resourcesPath || '', 'assets/sounds', soundFileName),
-        path.join(process.resourcesPath || '', 'assets', soundFileName),
-        path.join(app.getAppPath(), 'assets/sounds', soundFileName),
-        path.join(app.getAppPath(), 'assets', soundFileName),
-        path.join(store ? store.getUserSoundsDir() : '', soundFileName),
-      ];
-
-      for (const cand of candidates) {
-        if (cand && fs.existsSync(cand)) {
-          return net.fetch(pathToFileURL(cand).toString());
-        }
+      if (resolvedPath && fs.existsSync(resolvedPath)) {
+        return net.fetch(pathToFileURL(resolvedPath).toString());
       }
 
       console.warn('Audio file not found on disk:', targetPath);

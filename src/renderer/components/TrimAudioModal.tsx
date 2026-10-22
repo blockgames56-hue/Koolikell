@@ -6,11 +6,6 @@ import {
   Music,
   Check,
   Clock,
-  ChevronLeft,
-  ChevronRight,
-  GripHorizontal,
-  Minus,
-  Plus,
 } from 'lucide-react';
 import { type MusicTrack } from '@/types';
 import { type Translations } from '@/i18n';
@@ -69,7 +64,7 @@ export function TrimAudioModal({
   const waveformContainerRef = useRef<HTMLDivElement | null>(null);
 
   const dragRef = useRef<{
-    mode: 'start' | 'end' | 'move';
+    mode: 'start' | 'end';
     startX: number;
     initialStart: number;
     initialEnd: number;
@@ -220,8 +215,8 @@ export function TrimAudioModal({
     animFrameRef.current = requestAnimationFrame(trackPlayback);
   };
 
-  // Start dragging a handle ('start' | 'end') or the entire selection ('move')
-  const startDrag = (mode: 'start' | 'end' | 'move', e: React.PointerEvent) => {
+  // Start dragging one of the two handles ('start' | 'end')
+  const startDrag = (mode: 'start' | 'end', e: React.PointerEvent) => {
     e.stopPropagation();
     if (!waveformContainerRef.current) return;
     const rect = waveformContainerRef.current.getBoundingClientRect();
@@ -253,12 +248,6 @@ export function TrimAudioModal({
         const target = Math.round(initialEnd + deltaSec);
         const clamped = Math.min(dur, Math.max(startSecRef.current + 1, target));
         setEndSec(clamped);
-      } else if (mode === 'move') {
-        const segmentLen = initialEnd - initialStart;
-        const target = Math.round(initialStart + deltaSec);
-        const clampedStart = Math.max(0, Math.min(dur - segmentLen, target));
-        setStartSec(clampedStart);
-        setEndSec(clampedStart + segmentLen);
       }
     };
 
@@ -274,7 +263,7 @@ export function TrimAudioModal({
     window.addEventListener('pointerup', handlePointerUp);
   };
 
-  // Click on background of waveform to scrub / move selection there
+  // Click on background of waveform to move nearest slider to that position
   const handleWaveformClick = (e: React.MouseEvent<HTMLDivElement>) => {
     if (dragRef.current?.hasMoved) return;
     if (!waveformContainerRef.current) return;
@@ -283,13 +272,13 @@ export function TrimAudioModal({
     const ratio = Math.max(0, Math.min(1, clickX / rect.width));
     const targetSecond = Math.round(ratio * totalDuration);
 
-    const currentDuration = Math.max(1, endSec - startSec);
-    if (targetSecond + currentDuration <= totalDuration) {
-      setStartSec(targetSecond);
-      setEndSec(targetSecond + currentDuration);
+    const distToStart = Math.abs(targetSecond - startSec);
+    const distToEnd = Math.abs(targetSecond - endSec);
+
+    if (distToStart < distToEnd) {
+      setStartSec(Math.min(targetSecond, endSec - 1));
     } else {
-      setStartSec(Math.max(0, totalDuration - currentDuration));
-      setEndSec(totalDuration);
+      setEndSec(Math.max(targetSecond, startSec + 1));
     }
 
     if (isPlayingSnippet && audioRef.current) {
@@ -374,167 +363,75 @@ export function TrimAudioModal({
             <div
               ref={waveformContainerRef}
               onClick={handleWaveformClick}
-              className="relative h-36 bg-slate-900 rounded-2xl overflow-hidden cursor-pointer select-none flex items-center border border-slate-800 shadow-inner group"
+              className="relative h-28 bg-slate-100 dark:bg-[#0c1424] rounded-2xl overflow-hidden cursor-pointer select-none flex items-center border border-slate-200/90 dark:border-[#1e293b] shadow-inner group"
             >
-              {/* Selected highlight zone (draggable to move snippet) */}
+              {/* Selected highlight zone (calm visual shade, no buttons) */}
               <div
-                className="absolute top-0 bottom-0 bg-[#0284c7]/20 border-y-2 border-[#38bdf8]/80 cursor-grab active:cursor-grabbing z-20 flex flex-col items-center justify-between py-2.5 select-none transition-colors hover:bg-[#0284c7]/30"
+                className="absolute top-0 bottom-0 bg-[#185d9e]/15 dark:bg-[#185d9e]/30 border-y border-[#185d9e]/40 pointer-events-none z-15"
                 style={{
                   left: `${startPercent}%`,
                   width: `${endPercent - startPercent}%`,
                 }}
-                onPointerDown={(e) => startDrag('move', e)}
-                title="Потяните, чтобы передвинуть отрезок"
-              >
-                {/* Duration badge with quick - and + */}
-                <div
-                  className="flex items-center gap-1.5 bg-[#0284c7] text-white text-xs font-bold px-2.5 py-0.5 rounded-full shadow-md border border-white/30 cursor-default select-none"
-                  onPointerDown={(e) => e.stopPropagation()}
-                >
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setEndSec((prev) => Math.max(startSec + 1, prev - 1));
-                    }}
-                    className="w-4 h-4 flex items-center justify-center rounded-full hover:bg-white/20 active:bg-white/30 transition-colors"
-                    title="–1 сек"
-                  >
-                    <Minus className="w-3 h-3" />
-                  </button>
-                  <span className="font-mono tracking-wide">{durationSec}с</span>
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setEndSec((prev) => Math.min(totalDuration, prev + 1));
-                    }}
-                    className="w-4 h-4 flex items-center justify-center rounded-full hover:bg-white/20 active:bg-white/30 transition-colors"
-                    title="+1 сек"
-                  >
-                    <Plus className="w-3 h-3" />
-                  </button>
-                </div>
+              />
 
-                {/* Grip indicator: Передвинуть */}
-                <div className="flex items-center gap-1 text-sky-200/60 pointer-events-none text-[10px] font-medium tracking-wider uppercase">
-                  <GripHorizontal className="w-4 h-4" />
-                  <span>Передвинуть</span>
-                </div>
-
-                <div className="h-1" />
-              </div>
-
-              {/* Left Handle with Arrows (Start resize: раздвинуть/сдвинуть) */}
+              {/* 1. Left Slider Handle (Начало) */}
               <div
-                className="absolute top-0 bottom-0 z-30 flex flex-col items-center justify-center select-none"
+                className="absolute top-0 bottom-0 z-30 flex flex-col items-center justify-center select-none cursor-ew-resize group/handleLeft"
                 style={{
                   left: `${startPercent}%`,
-                  transform: startPercent < 4 ? 'translateX(0)' : (startPercent > 96 ? 'translateX(-100%)' : 'translateX(-50%)'),
+                  transform: 'translateX(-50%)',
                 }}
                 onPointerDown={(e) => startDrag('start', e)}
+                title="Ползунок начала"
               >
-                {/* Vertical blue line */}
-                <div className="absolute top-0 bottom-0 w-1 bg-[#38bdf8] shadow-[0_0_8px_rgba(56,189,248,0.8)] pointer-events-none" />
+                {/* Vertical guide line */}
+                <div className="absolute top-0 bottom-0 w-0.5 bg-[#185d9e] dark:bg-[#4a97e2]" />
 
-                {/* Timestamp badge */}
-                <div className="absolute top-1.5 z-20 px-1.5 py-0.5 rounded bg-slate-950/90 border border-sky-400 text-[10px] font-mono font-bold text-sky-200 shadow-md pointer-events-none whitespace-nowrap">
+                {/* Floating start timestamp */}
+                <div className="absolute top-1.5 z-20 px-1.5 py-0.5 rounded bg-white dark:bg-slate-900 border border-[#185d9e] dark:border-[#4a97e2] text-[10px] font-mono font-bold text-[#185d9e] dark:text-[#7bb3e8] shadow-sm pointer-events-none whitespace-nowrap">
                   {formatTime(startSec)}
                 </div>
 
-                {/* Big prominent arrow handle */}
-                <div
-                  className="relative z-10 flex items-center bg-[#0284c7] hover:bg-[#0369a1] text-white rounded-xl p-1 shadow-2xl border-2 border-white cursor-ew-resize transition-all hover:scale-110 active:scale-95 group/handle"
-                  title="Потяните или нажмите стрелочки для изменения начала отрезка"
-                >
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      if (dragRef.current?.hasMoved) return;
-                      setStartSec((prev) => Math.max(0, prev - 1));
-                    }}
-                    className="w-6 h-8 flex items-center justify-center rounded-lg hover:bg-white/20 active:bg-white/30 transition-colors"
-                    title="Раздвинуть отрезок влево (–1с)"
-                  >
-                    <ChevronLeft className="w-4 h-4 stroke-[3]" />
-                  </button>
-                  <div className="w-[1.5px] h-5 bg-white/40" />
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      if (dragRef.current?.hasMoved) return;
-                      setStartSec((prev) => Math.min(endSec - 1, prev + 1));
-                    }}
-                    className="w-6 h-8 flex items-center justify-center rounded-lg hover:bg-white/20 active:bg-white/30 transition-colors"
-                    title="Сдвинуть отрезок вправо (+1с)"
-                  >
-                    <ChevronRight className="w-4 h-4 stroke-[3]" />
-                  </button>
+                {/* Left slider thumb */}
+                <div className="relative z-10 w-4 h-9 rounded-md bg-[#185d9e] text-white shadow-md flex items-center justify-center group-hover/handleLeft:scale-110 active:scale-95 transition-transform pointer-events-none">
+                  <div className="w-1.5 h-3 border-r-2 border-white/90" />
                 </div>
               </div>
 
-              {/* Right Handle with Arrows (End resize: раздвинуть/сдвинуть) */}
+              {/* 2. Right Slider Handle (Конец) */}
               <div
-                className="absolute top-0 bottom-0 z-30 flex flex-col items-center justify-center select-none"
+                className="absolute top-0 bottom-0 z-30 flex flex-col items-center justify-center select-none cursor-ew-resize group/handleRight"
                 style={{
                   left: `${endPercent}%`,
-                  transform: endPercent < 4 ? 'translateX(0)' : (endPercent > 96 ? 'translateX(-100%)' : 'translateX(-50%)'),
+                  transform: 'translateX(-50%)',
                 }}
                 onPointerDown={(e) => startDrag('end', e)}
+                title="Ползунок конца"
               >
-                {/* Vertical blue line */}
-                <div className="absolute top-0 bottom-0 w-1 bg-[#38bdf8] shadow-[0_0_8px_rgba(56,189,248,0.8)] pointer-events-none" />
+                {/* Vertical guide line */}
+                <div className="absolute top-0 bottom-0 w-0.5 bg-[#185d9e] dark:bg-[#4a97e2]" />
 
-                {/* Timestamp badge */}
-                <div className="absolute top-1.5 z-20 px-1.5 py-0.5 rounded bg-slate-950/90 border border-sky-400 text-[10px] font-mono font-bold text-sky-200 shadow-md pointer-events-none whitespace-nowrap">
+                {/* Floating end timestamp */}
+                <div className="absolute top-1.5 z-20 px-1.5 py-0.5 rounded bg-white dark:bg-slate-900 border border-[#185d9e] dark:border-[#4a97e2] text-[10px] font-mono font-bold text-[#185d9e] dark:text-[#7bb3e8] shadow-sm pointer-events-none whitespace-nowrap">
                   {formatTime(endSec)}
                 </div>
 
-                {/* Big prominent arrow handle */}
-                <div
-                  className="relative z-10 flex items-center bg-[#0284c7] hover:bg-[#0369a1] text-white rounded-xl p-1 shadow-2xl border-2 border-white cursor-ew-resize transition-all hover:scale-110 active:scale-95 group/handle"
-                  title="Потяните или нажмите стрелочки для изменения конца отрезка"
-                >
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      if (dragRef.current?.hasMoved) return;
-                      setEndSec((prev) => Math.max(startSec + 1, prev - 1));
-                    }}
-                    className="w-6 h-8 flex items-center justify-center rounded-lg hover:bg-white/20 active:bg-white/30 transition-colors"
-                    title="Сдвинуть отрезок влево (–1с)"
-                  >
-                    <ChevronLeft className="w-4 h-4 stroke-[3]" />
-                  </button>
-                  <div className="w-[1.5px] h-5 bg-white/40" />
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      if (dragRef.current?.hasMoved) return;
-                      setEndSec((prev) => Math.min(totalDuration, prev + 1));
-                    }}
-                    className="w-6 h-8 flex items-center justify-center rounded-lg hover:bg-white/20 active:bg-white/30 transition-colors"
-                    title="Раздвинуть отрезок вправо (+1с)"
-                  >
-                    <ChevronRight className="w-4 h-4 stroke-[3]" />
-                  </button>
+                {/* Right slider thumb */}
+                <div className="relative z-10 w-4 h-9 rounded-md bg-[#185d9e] text-white shadow-md flex items-center justify-center group-hover/handleRight:scale-110 active:scale-95 transition-transform pointer-events-none">
+                  <div className="w-1.5 h-3 border-l-2 border-white/90" />
                 </div>
               </div>
 
               {/* Moving Playhead Cursor */}
               {isPlayingSnippet && (
                 <div
-                  className="absolute top-0 bottom-0 w-0.5 bg-emerald-400 shadow-md shadow-emerald-400/80 z-25 pointer-events-none transition-all"
+                  className="absolute top-0 bottom-0 w-0.5 bg-emerald-500 shadow-sm z-25 pointer-events-none transition-all"
                   style={{ left: `${playheadPercent}%` }}
                 />
               )}
 
               {/* Waveform Bars */}
-              <div className="w-full h-full px-2 flex items-center justify-between gap-0.5 relative z-10 pointer-events-none">
+              <div className="w-full h-full px-3 flex items-center justify-between gap-[2px] relative z-10 pointer-events-none">
                 {waveformPeaks.map((peak, idx) => {
                   const barPercent = (idx / waveformPeaks.length) * 100;
                   const isInsideSelection = barPercent >= startPercent && barPercent <= endPercent;
@@ -542,13 +439,13 @@ export function TrimAudioModal({
                   return (
                     <div
                       key={idx}
-                      className={`flex-1 rounded-full transition-all duration-150 ${
+                      className={`flex-1 rounded-full transition-colors duration-150 ${
                         isInsideSelection
-                          ? 'bg-[#38bdf8] shadow-[0_0_8px_rgba(56,189,248,0.5)]'
-                          : 'bg-slate-700 opacity-40'
+                          ? 'bg-[#185d9e] dark:bg-[#3884cb]'
+                          : 'bg-slate-300 dark:bg-slate-700/60'
                       }`}
                       style={{
-                        height: `${Math.max(12, peak * 85)}%`,
+                        height: `${Math.max(14, peak * 82)}%`,
                       }}
                     />
                   );

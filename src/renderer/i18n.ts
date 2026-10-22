@@ -52,6 +52,11 @@ export interface Translations {
   shortenedTitle: string;
   shortenedMode: string;
   shortenedDisabledMsg: string;
+  shortenedActiveWarning: string;
+  switchToRegularBtn: string;
+  regularDisabledByShortened: string;
+  editRegularAnyway: string;
+  hideRegularSchedule: string;
   noBellsForDay: string;
   addBell: string;
   startLesson: string;
@@ -161,6 +166,11 @@ export const translations: Record<Language, Translations> = {
     shortenedTitle: 'Сокращённые уроки',
     shortenedMode: 'Режим сокращённого дня',
     shortenedDisabledMsg: 'Режим сокращённого расписания отключён',
+    shortenedActiveWarning: 'Включён режим сокращённого расписания. Основное расписание сейчас выключено.',
+    switchToRegularBtn: 'Включить обычное расписание',
+    regularDisabledByShortened: 'Звонки подаются по сокращённому графику.',
+    editRegularAnyway: 'Показать основное расписание для настройки',
+    hideRegularSchedule: 'Скрыть основное расписание',
     noBellsForDay: 'Нет звонков на этот день',
     addBell: 'Добавить звонок',
     startLesson: 'Начало',
@@ -265,6 +275,11 @@ export const translations: Record<Language, Translations> = {
     shortenedTitle: 'Shortened lessons',
     shortenedMode: 'Shortened schedule mode',
     shortenedDisabledMsg: 'Shortened schedule mode is disabled',
+    shortenedActiveWarning: 'Shortened schedule mode is active. Main schedule is currently turned off.',
+    switchToRegularBtn: 'Switch to regular schedule',
+    regularDisabledByShortened: 'Bells are ringing according to the shortened schedule.',
+    editRegularAnyway: 'Show main schedule to edit',
+    hideRegularSchedule: 'Hide main schedule',
     noBellsForDay: 'No bells for this day',
     addBell: 'Add bell',
     startLesson: 'Start',
@@ -369,6 +384,11 @@ export const translations: Record<Language, Translations> = {
     shortenedTitle: 'Lühendatud tunnid',
     shortenedMode: 'Lühendatud päeva režiim',
     shortenedDisabledMsg: 'Lühendatud tundide režiim on välja lülitatud',
+    shortenedActiveWarning: 'Lühendatud tundide režiim on aktiivne. Tavaline tunniplaan on välja lülitatud.',
+    switchToRegularBtn: 'Lülita tavalisele tunniplaanile',
+    regularDisabledByShortened: 'Koolikellad helisevad lühendatud plaani järgi.',
+    editRegularAnyway: 'Näita tavalist tunniplaani muutmiseks',
+    hideRegularSchedule: 'Peida tavaline tunniplaan',
     noBellsForDay: 'Tänaseks kellasid pole',
     addBell: 'Lisa kell',
     startLesson: 'Algus',

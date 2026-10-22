@@ -302,14 +302,16 @@ export function App() {
     track: MusicTrack,
     durationSec: number,
     volPercent: number,
-    loopMode: boolean,
+    loopMode: boolean = false,
     startOffsetSec: number = 0,
     customPlayingId?: string
   ) => {
     stopAllAudio();
 
-    const effectiveVol = Math.max(0.01, Math.min(1, (volPercent / 100) * (systemVolumeRef.current / 100)));
+    const effectiveVol = Math.max(0.05, Math.min(1, (volPercent / 100) * (systemVolumeRef.current / 100)));
     const primaryUrl = getAudioSourceUrl(track);
+    const soundDuration = durationSec > 0 ? durationSec : 15;
+    const fadeDurationSec = Math.min(3.0, Math.max(0.5, soundDuration * 0.25));
 
     const setupAndPlay = (src: string): Promise<boolean> => {
       return new Promise<boolean>((resolve) => {
@@ -339,6 +341,9 @@ export function App() {
         audioRef.current = audio;
         setPlayingId(customPlayingId ?? track.id);
 
+        let playStartTime: number | null = null;
+        let fadeWatcherStarted = false;
+
         const applySeek = () => {
           if (startOffsetSec > 0) {
             try {
@@ -356,41 +361,48 @@ export function App() {
           audio.addEventListener('loadedmetadata', applySeek, { once: true });
         }
 
-        const playStartTime = performance.now();
-        const fadeDurationSec = 2.5;
+        const startFadeWatcher = () => {
+          if (fadeWatcherStarted) return;
+          fadeWatcherStarted = true;
+          playStartTime = performance.now();
 
-        // Smooth volume fade-out before duration ends
-        if (durationSec > 0) {
-          fadeIntervalRef.current = setInterval(() => {
-            if (!audioRef.current || audioRef.current !== audio) {
-              if (fadeIntervalRef.current) {
-                clearInterval(fadeIntervalRef.current);
-                fadeIntervalRef.current = null;
+          if (soundDuration > 0) {
+            fadeIntervalRef.current = setInterval(() => {
+              if (!audioRef.current || audioRef.current !== audio) {
+                if (fadeIntervalRef.current) {
+                  clearInterval(fadeIntervalRef.current);
+                  fadeIntervalRef.current = null;
+                }
+                return;
               }
-              return;
-            }
 
-            const elapsedSec = (performance.now() - playStartTime) / 1000;
-            const timeUntilCutoff = durationSec - elapsedSec;
+              if (playStartTime === null) return;
+              const elapsedSec = (performance.now() - playStartTime) / 1000;
+              const timeUntilCutoff = soundDuration - elapsedSec;
 
-            if (timeUntilCutoff <= 0) {
+              if (timeUntilCutoff <= 0) {
+                stopAllAudio();
+              } else if (timeUntilCutoff <= fadeDurationSec) {
+                // Smooth linear fade-out to 0
+                const progress = Math.max(0, Math.min(1, timeUntilCutoff / fadeDurationSec));
+                audio.volume = Math.max(0, Math.min(1, effectiveVol * progress));
+              } else {
+                audio.volume = effectiveVol;
+              }
+            }, 30);
+
+            stopTimeoutRef.current = setTimeout(() => {
               stopAllAudio();
-            } else if (timeUntilCutoff <= fadeDurationSec) {
-              const p = Math.max(0, Math.min(1, timeUntilCutoff / fadeDurationSec));
-              const factor = 0.5 * (1 - Math.cos(p * Math.PI));
-              audio.volume = Math.max(0, Math.min(1, effectiveVol * factor));
-            } else {
-              audio.volume = effectiveVol;
-            }
-          }, 50);
+            }, (soundDuration + 0.1) * 1000);
+          }
+        };
 
-          stopTimeoutRef.current = setTimeout(() => {
-            stopAllAudio();
-          }, (durationSec + 0.3) * 1000);
-        }
+        audio.addEventListener('playing', startFadeWatcher, { once: true });
 
         audio.onended = () => {
-          stopAllAudio();
+          if (!loopMode) {
+            stopAllAudio();
+          }
         };
 
         audio.onerror = (e) => {
@@ -405,6 +417,7 @@ export function App() {
         if (playPromise !== undefined) {
           playPromise
             .then(() => {
+              startFadeWatcher();
               if (!resolved) {
                 resolved = true;
                 resolve(true);
@@ -665,14 +678,14 @@ export function App() {
             defaultBuiltInTracks[0];
 
           if (targetTrack) {
-            const dur = bell.durationSec ?? targetTrack.playDurationSec ?? bellDurationRef.current;
+            const dur = Math.max(1, bell.durationSec ?? targetTrack.playDurationSec ?? bellDurationRef.current ?? 15);
             const offset = bell.startOffsetSec ?? targetTrack.startOffsetSec ?? 0;
             console.log(`[Scheduler] 🔔 Triggering bell "${bell.label}" scheduled for ${bell.time} with track "${targetTrack.name}" (${dur}s)`);
             playTrackAudio(
               targetTrack,
               dur,
-              bellVolumeRef.current,
-              bellRepeatRef.current,
+              Math.max(1, bellVolumeRef.current || 80),
+              false,
               offset,
               bell.id
             );
@@ -728,6 +741,7 @@ export function App() {
           collapsed={sidebarCollapsed}
           onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)}
           t={t}
+          shortenedActive={shortenedEnabled}
         />
 
         <div className="flex-1 flex flex-col overflow-hidden">
@@ -778,7 +792,7 @@ export function App() {
                   if (activeTrack) {
                     const dur = activeTrack.playDurationSec ?? bellDuration;
                     const offset = activeTrack.startOffsetSec ?? 0;
-                    playTrackAudio(activeTrack, dur, bellVolume, bellRepeat, offset);
+                    playTrackAudio(activeTrack, dur, bellVolume, false, offset);
                   }
                 }}
                 onStopBell={stopAllAudio}
@@ -815,6 +829,9 @@ export function App() {
                 tracks={localizedTracks}
                 defaultTrackId={selectedBellTrack}
                 t={t}
+                shortenedEnabled={shortenedEnabled}
+                onDisableShortened={() => setShortenedEnabled(false)}
+                onNavigateToShortened={() => setActiveSection('shortened')}
               />
             )}
 
