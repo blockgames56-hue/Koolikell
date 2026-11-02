@@ -57,10 +57,15 @@ export interface IpcApi {
   closeWindow: () => void;
   exportData: () => Promise<boolean>;
   importData: () => Promise<AppData | null>;
+  exportProject?: (projectData: any) => Promise<boolean>;
+  importProject?: () => Promise<any | null>;
   openAudioFolder: () => void;
   readAudioBase64?: (filePath: string) => Promise<string | null>;
   onTriggerBell: (callback: (bell: BellItem) => void) => () => void;
   onHeartbeat?: (callback: () => void) => () => void;
+  getSystemVolume?: () => Promise<number>;
+  setSystemVolume?: (val: number) => Promise<number>;
+  onSystemVolumeChanged?: (callback: (vol: number) => void) => () => void;
 }
 
 declare global {

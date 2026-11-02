@@ -1,6 +1,7 @@
 import { app, BrowserWindow, ipcMain, dialog, Menu, Tray, protocol, net, session } from 'electron';
 import * as path from 'path';
 import * as fs from 'fs';
+import { execFile } from 'child_process';
 import { pathToFileURL } from 'url';
 import { AppStore } from './store';
 import { BellItem, AppSettings, SoundItem, AppData } from '../types';
@@ -58,6 +59,49 @@ function getAppLogoPath(): string {
     if (cand && fs.existsSync(cand)) return cand;
   }
   return '';
+}
+
+function getWinVolumeExePath(): string {
+  const appPath = app.getAppPath();
+  const candidates = [
+    path.join(process.resourcesPath || '', 'assets/winvolume.exe'),
+    path.join(process.resourcesPath || '', 'winvolume.exe'),
+    path.join(appPath.replace('app.asar', 'app.asar.unpacked'), 'assets/winvolume.exe'),
+    path.join(appPath, 'assets/winvolume.exe'),
+    path.join(__dirname, '../../assets/winvolume.exe'),
+    path.join(__dirname, '../assets/winvolume.exe'),
+    path.join(__dirname, 'assets/winvolume.exe'),
+    path.join(process.cwd(), 'assets/winvolume.exe'),
+  ];
+  for (const cand of candidates) {
+    if (cand && fs.existsSync(cand)) return cand;
+  }
+  return '';
+}
+
+function getSystemVolume(): Promise<number> {
+  return new Promise((resolve) => {
+    const exe = getWinVolumeExePath();
+    if (!exe) return resolve(100);
+    execFile(exe, [], { windowsHide: true }, (err, stdout) => {
+      if (err) return resolve(100);
+      const val = parseInt(stdout.trim(), 10);
+      resolve(isNaN(val) ? 100 : val);
+    });
+  });
+}
+
+function setSystemVolume(val: number): Promise<number> {
+  return new Promise((resolve) => {
+    const exe = getWinVolumeExePath();
+    if (!exe) return resolve(val);
+    const clamped = Math.max(0, Math.min(100, Math.round(val)));
+    execFile(exe, [String(clamped)], { windowsHide: true }, (err, stdout) => {
+      if (err) return resolve(clamped);
+      const res = parseInt(stdout.trim(), 10);
+      resolve(isNaN(res) ? clamped : res);
+    });
+  });
 }
 
 function createMainWindow(): BrowserWindow {
@@ -385,6 +429,51 @@ function setupIpc(): void {
     }
   });
 
+  ipcMain.handle('app:export-project', async (_event, projectData: any) => {
+    if (!mainWindow) return false;
+    const saveRes = await dialog.showSaveDialog(mainWindow, {
+      title: 'Экспорт расписания Koolikell',
+      defaultPath: 'schedule.kl',
+      filters: [
+        { name: 'Файл расписания Koolikell (*.kl)', extensions: ['kl'] },
+        { name: 'Все файлы (*.*)', extensions: ['*'] }
+      ]
+    });
+
+    if (saveRes.canceled || !saveRes.filePath) return false;
+
+    try {
+      fs.writeFileSync(saveRes.filePath, JSON.stringify(projectData, null, 2), 'utf-8');
+      return true;
+    } catch (e) {
+      console.error('Export project failed:', e);
+      return false;
+    }
+  });
+
+  ipcMain.handle('app:import-project', async () => {
+    if (!mainWindow) return null;
+    const openRes = await dialog.showOpenDialog(mainWindow, {
+      title: 'Импорт расписания Koolikell',
+      filters: [
+        { name: 'Файл расписания Koolikell (*.kl)', extensions: ['kl', 'json'] },
+        { name: 'Все файлы (*.*)', extensions: ['*'] }
+      ],
+      properties: ['openFile']
+    });
+
+    if (openRes.canceled || openRes.filePaths.length === 0) return null;
+
+    try {
+      const content = fs.readFileSync(openRes.filePaths[0], 'utf-8');
+      const parsed = JSON.parse(content);
+      return parsed;
+    } catch (e) {
+      console.error('Import project failed:', e);
+      return null;
+    }
+  });
+
   // Base64 audio fallback IPC
   ipcMain.handle('app:read-audio-base64', async (_event, filePath: string) => {
     try {
@@ -433,6 +522,14 @@ function setupIpc(): void {
     const { shell } = require('electron');
     shell.openPath(store.getUserSoundsDir());
   });
+
+  ipcMain.handle('system:get-volume', async () => {
+    return await getSystemVolume();
+  });
+
+  ipcMain.handle('system:set-volume', async (_event, val: number) => {
+    return await setSystemVolume(val);
+  });
 }
 
 function applyAutostartSetting(enabled: boolean): void {
@@ -448,6 +545,7 @@ function applyAutostartSetting(enabled: boolean): void {
 }
 
 app.whenReady().then(() => {
+  app.setAppUserModelId('com.koolikell.schoolbell');
   store = new AppStore();
   registerAudioProtocol();
   setupIpc();
@@ -472,6 +570,20 @@ app.whenReady().then(() => {
       mainWindow.webContents.send('scheduler:heartbeat', Date.now());
     }
   }, 500);
+
+  // Poll system volume periodically to sync external volume changes (e.g. keyboard keys or Windows tray)
+  let lastReportedVolume = -1;
+  setInterval(async () => {
+    if (mainWindow && !mainWindow.isDestroyed() && mainWindow.isVisible()) {
+      try {
+        const curVol = await getSystemVolume();
+        if (curVol !== lastReportedVolume) {
+          lastReportedVolume = curVol;
+          mainWindow.webContents.send('system:volume-changed', curVol);
+        }
+      } catch (e) {}
+    }
+  }, 1500);
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {

@@ -10,6 +10,8 @@ import {
   AlertTriangle,
   CalendarClock,
   Power,
+  Download,
+  Upload,
 } from 'lucide-react';
 import { Toggle } from '@/components/Toggle';
 import { AddBellModal } from '@/components/AddBellModal';
@@ -27,6 +29,8 @@ interface ScheduleProps {
   shortenedEnabled?: boolean;
   onDisableShortened?: () => void;
   onNavigateToShortened?: () => void;
+  onExportTemplate?: () => void;
+  onImportTemplate?: () => void;
 }
 
 export function Schedule({
@@ -40,6 +44,8 @@ export function Schedule({
   shortenedEnabled,
   onDisableShortened,
   onNavigateToShortened,
+  onExportTemplate,
+  onImportTemplate,
 }: ScheduleProps) {
   const currentDayOfWeek = new Date().getDay();
   const isoDayIdx = (currentDayOfWeek + 6) % 7;
@@ -338,7 +344,7 @@ export function Schedule({
 
   return (
     <div className="space-y-4 animate-fade-in">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-2.5">
         <div className="flex items-center gap-2.5">
           <h2 className="text-xl font-bold text-slate-800 dark:text-slate-100">{t.scheduleTitle}</h2>
           {shortenedEnabled && (
@@ -346,6 +352,31 @@ export function Schedule({
               <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
               {t.shortenedBadge}
             </span>
+          )}
+        </div>
+
+        <div className="flex items-center gap-2">
+          {onExportTemplate && (
+            <button
+              type="button"
+              onClick={onExportTemplate}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-white dark:bg-[#1a2844] text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-[#273852] hover:border-[#185d9e] hover:text-[#185d9e] dark:hover:border-[#185d9e] dark:hover:text-[#60a5fa] transition-all cursor-pointer shadow-2xs"
+              title={t.exportTemplate}
+            >
+              <Download className="w-3.5 h-3.5 text-[#185d9e]" />
+              <span>{t.exportTemplate}</span>
+            </button>
+          )}
+          {onImportTemplate && (
+            <button
+              type="button"
+              onClick={onImportTemplate}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-white dark:bg-[#1a2844] text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-[#273852] hover:border-[#185d9e] hover:text-[#185d9e] dark:hover:border-[#185d9e] dark:hover:text-[#60a5fa] transition-all cursor-pointer shadow-2xs"
+              title={t.importTemplate}
+            >
+              <Upload className="w-3.5 h-3.5 text-[#185d9e]" />
+              <span>{t.importTemplate}</span>
+            </button>
           )}
         </div>
       </div>

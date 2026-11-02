@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "description": "Автоматическая система школьных звонков Koolikell",
   "main": "dist/main/main.js",
+  "license": "MIT",
   "author": "",
   "scripts": {
     "clean": "rimraf dist",
@@ -13,7 +14,8 @@
     "start": "electron .",
     "dev": "npm run build && electron .",
     "pack:exe": "npm run build && electron-builder --win --x64 --dir",
-    "dist:exe": "npm run build && electron-builder --win --x64"
+    "dist:exe": "npm run build && electron-builder --win --x64",
+    "dist:installer": "npm run build && electron-builder --win --x64"
   },
   "build": {
     "appId": "com.koolikell.schoolbell",
@@ -23,16 +25,37 @@
     },
     "win": {
       "target": [
-        "nsis",
-        "portable"
+        "nsis"
       ],
-      "icon": "assets/logo.png"
+      "icon": "assets/logo.png",
+      "artifactName": "koolikell-installer.${ext}"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "allowElevation": true,
+      "createDesktopShortcut": "always",
+      "createStartMenuShortcut": true,
+      "shortcutName": "Koolikell",
+      "uninstallDisplayName": "Koolikell",
+      "runAfterFinish": true,
+      "installerLanguages": [
+        "ru_RU",
+        "en_US",
+        "et_EE"
+      ],
+      "language": "1049",
+      "warningsAsErrors": false
     },
     "extraResources": [
       {
         "from": "assets",
         "to": "assets"
       }
+    ],
+    "asarUnpack": [
+      "assets/**/*"
     ],
     "files": [
       "dist/**/*",

@@ -1,7 +1,8 @@
 @echo off
-title Koolikell Builder
+title Koolikell Quick Runner (Dev Unpacked)
 echo ========================================================
-echo   Koolikell: Building application executable...
+echo   Koolikell: Quick Dev Build (win-unpacked)
+echo   Note: For full installer to share with users, run build-installer.bat
 echo ========================================================
 echo.
 

@@ -14,6 +14,8 @@ const api = {
   closeWindow: (): void => ipcRenderer.send('window:close'),
   exportData: (): Promise<boolean> => ipcRenderer.invoke('app:export-data'),
   importData: (): Promise<AppData | null> => ipcRenderer.invoke('app:import-data'),
+  exportProject: (projectData: any): Promise<boolean> => ipcRenderer.invoke('app:export-project', projectData),
+  importProject: (): Promise<any | null> => ipcRenderer.invoke('app:import-project'),
   openAudioFolder: (): void => ipcRenderer.send('app:open-audio-folder'),
   readAudioBase64: (filePath: string): Promise<string | null> => ipcRenderer.invoke('app:read-audio-base64', filePath),
   onTriggerBell: (callback: (bell: BellItem) => void) => {
@@ -28,6 +30,15 @@ const api = {
     ipcRenderer.on('scheduler:heartbeat', handler);
     return () => {
       ipcRenderer.removeListener('scheduler:heartbeat', handler);
+    };
+  },
+  getSystemVolume: (): Promise<number> => ipcRenderer.invoke('system:get-volume'),
+  setSystemVolume: (val: number): Promise<number> => ipcRenderer.invoke('system:set-volume', val),
+  onSystemVolumeChanged: (callback: (vol: number) => void) => {
+    const handler = (_event: any, vol: number) => callback(vol);
+    ipcRenderer.on('system:volume-changed', handler);
+    return () => {
+      ipcRenderer.removeListener('system:volume-changed', handler);
     };
   }
 };

@@ -114,6 +114,15 @@ export interface Translations {
   noMusicToRing: string;
   noMelodiesDashboard: string;
 
+  // Templates / Project Export & Import
+  exportTemplate: string;
+  importTemplate: string;
+  templatesSectionTitle: string;
+  templatesSectionDesc: string;
+  templateExportSuccess: string;
+  templateImportSuccess: string;
+  templateImportError: string;
+
   // Default track names
   trackClassic: string;
   trackWestminster: string;
@@ -228,6 +237,14 @@ export const translations: Record<Language, Translations> = {
     noMusicToRing: 'Нельзя подать звонок: сначала загрузите мелодию',
     noMelodiesDashboard: 'Мелодии не загружены. Для подачи звонков добавьте аудиофайл в разделе «Звонки».',
 
+    exportTemplate: 'Экспорт (.kl)',
+    importTemplate: 'Импорт (.kl)',
+    templatesSectionTitle: 'Шаблоны расписания',
+    templatesSectionDesc: '',
+    templateExportSuccess: 'Шаблон сохранён в файл .kl',
+    templateImportSuccess: 'Шаблон расписания загружен!',
+    templateImportError: 'Ошибка при чтении файла .kl',
+
     trackClassic: 'Школьный звонок (классический)',
     trackWestminster: 'Мелодия «Вестминстер»',
     trackGong: 'Мягкий школьный гонг',
@@ -340,6 +357,14 @@ export const translations: Record<Language, Translations> = {
     noMusicToRing: 'Cannot ring: please upload at least one melody',
     noMelodiesDashboard: 'No melodies uploaded. To ring bells, add an audio file in the "Bells" section.',
 
+    exportTemplate: 'Export (.kl)',
+    importTemplate: 'Import (.kl)',
+    templatesSectionTitle: 'Schedule Templates',
+    templatesSectionDesc: '',
+    templateExportSuccess: 'Template saved to .kl file',
+    templateImportSuccess: 'Schedule template loaded!',
+    templateImportError: 'Error reading .kl file',
+
     trackClassic: 'Classic school bell',
     trackWestminster: 'Westminster chimes',
     trackGong: 'Gentle school gong',
@@ -451,6 +476,14 @@ export const translations: Record<Language, Translations> = {
     noMelodySelected: 'Helinat pole valitud',
     noMusicToRing: 'Ei saa helistada: laadige üles vähemalt üks meloodia',
     noMelodiesDashboard: 'Meloodiaid pole lisatud. Kellade helistamiseks lisage helifail jaotises "Helinad".',
+
+    exportTemplate: 'Ekspordi (.kl)',
+    importTemplate: 'Impordi (.kl)',
+    templatesSectionTitle: 'Tunniplaani mallid',
+    templatesSectionDesc: '',
+    templateExportSuccess: 'Mall salvestatud .kl faili',
+    templateImportSuccess: 'Tunniplaani mall laaditud!',
+    templateImportError: 'Viga .kl faili lugemisel',
 
     trackClassic: 'Koolikell (klassikaline)',
     trackWestminster: 'Westminsteri kellamäng',

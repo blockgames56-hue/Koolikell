@@ -90,7 +90,7 @@
 
 ### 1. Клонирование репозитория
 ```bash
-git clone https://github.com/your-username/koolikell.git
+git clone https://github.com/koolikell/koolikell.git
 cd koolikell
 ```
 
@@ -114,16 +114,19 @@ npm run dev
 # Полная компиляция проекта (TypeScript + Vite)
 npm run build
 
-# Создание распакованной сборки (win-unpacked)
-npm run pack:exe
+# Быстрая сборка полноценного установщика (.exe для передачи пользователям):
+Запустите файл build-installer.bat двойным кликом
+или выполните в терминале:
+npm run dist:installer
 
-# Создание инсталлятора (NSIS) и Portable EXE в папку release/
-npm run dist:exe
+# Создание распакованной сборки для локального тестирования:
+Запустите build-exe.bat или выполните:
+npm run pack:exe
 ```
 
 Собранные файлы будут доступны в директории `release/`:
-- `release/Koolikell Setup 1.0.0.exe` — установщик
-- `release/win-unpacked/Koolikell.exe` — распакованное приложение
+- `release/koolikell-installer.exe` — полноценный мастер установки Windows (выбор пути, создание ярлыка на рабочем столе и в меню Пуск)
+- `release/win-unpacked/Koolikell.exe` — распакованное приложение для разработчика
 
 ---
 
@@ -149,9 +152,9 @@ npm run dist:exe
 Пулл-реквесты приветствуются! Если вы хотите предложить улучшение, исправить ошибку или добавить перевод на новый язык:
 
 1. Сделайте форк репозитория (`Fork`)
-2. Создайте ветку для фичи (`git checkout -b feature/AmazingFeature`)
-3. Зафиксируйте изменения (`git commit -m 'feat: Add some AmazingFeature'`)
-4. Отправьте изменения в ваш форк (`git push origin feature/AmazingFeature`)
+2. Создайте ветку (`git checkout -b feature/my-feature`)
+3. Зафиксируйте изменения (`git commit -m 'feat: add feature'`)
+4. Отправьте изменения в ваш форк (`git push origin feature/my-feature`)
 5. Откройте **Pull Request**
 
 ---
@@ -161,5 +164,5 @@ npm run dist:exe
 Проект распространяется под лицензией **MIT**. Подробности в файле [LICENSE](LICENSE).
 
 <div align="center">
-  <sub>Создано с заботой о школах и учителях ❤️ Koolikell Team</sub>
+  <sub>Koolikell — School Bell Automation System</sub>
 </div>

@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { Check, AlertTriangle } from 'lucide-react';
 import { TitleBar } from '@/components/TitleBar';
 import { Sidebar } from '@/components/Sidebar';
 import { Dashboard } from '@/sections/Dashboard';
@@ -55,7 +56,7 @@ export function App() {
   const [bellTracks, setBellTracks] = useState<MusicTrack[]>([]);
   const [selectedBellTrack, setSelectedBellTrack] = useState<string>('');
   const [bellDuration, setBellDuration] = useState(15);
-  const [bellVolume, setBellVolume] = useState(80);
+  const [bellVolume, setBellVolume] = useState(100);
   const [bellRepeat, setBellRepeat] = useState(false);
   const [playingId, setPlayingId] = useState<string | null>(null);
 
@@ -71,7 +72,6 @@ export function App() {
 
   // Settings state
   const [autoStart, setAutoStart] = useState(false);
-  const [systemVolume, setSystemVolume] = useState(85);
   const [weekendsOff, setWeekendsOff] = useState(true);
   const [audioOutputDeviceId, setAudioOutputDeviceId] = useState<string>('');
   const [isTestingSound, setIsTestingSound] = useState<boolean>(false);
@@ -80,9 +80,19 @@ export function App() {
   const [nextBellCountdown, setNextBellCountdown] = useState('--:--');
   const [nextBellInfo, setNextBellInfo] = useState<{ label: string; time: string } | null>(null);
 
+  // Toast feedback state
+  const [toastMessage, setToastMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
+
+  const showToast = (text: string, type: 'success' | 'error' = 'success') => {
+    setToastMessage({ text, type });
+    setTimeout(() => setToastMessage(null), 3500);
+  };
+
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const stopTimeoutRef = useRef<any>(null);
   const fadeIntervalRef = useRef<any>(null);
+  const volumeDebounceTimerRef = useRef<any>(null);
+  const lastVolumeSentRef = useRef<number>(-1);
 
   // Audio element cache for instantaneous playback without disk I/O delay
   const audioCacheRef = useRef<Map<string, HTMLAudioElement>>(new Map());
@@ -114,9 +124,6 @@ export function App() {
 
   const bellRepeatRef = useRef(bellRepeat);
   bellRepeatRef.current = bellRepeat;
-
-  const systemVolumeRef = useRef(systemVolume);
-  systemVolumeRef.current = systemVolume;
 
   const audioOutputDeviceIdRef = useRef(audioOutputDeviceId);
   audioOutputDeviceIdRef.current = audioOutputDeviceId;
@@ -207,7 +214,6 @@ export function App() {
 
           if (parsed.shortenedEnabled !== undefined) setShortenedEnabled(parsed.shortenedEnabled);
           if (parsed.autoStart !== undefined) setAutoStart(parsed.autoStart);
-          if (parsed.systemVolume !== undefined) setSystemVolume(parsed.systemVolume);
           if (parsed.weekendsOff !== undefined) setWeekendsOff(parsed.weekendsOff);
           if (parsed.audioOutputDeviceId !== undefined) setAudioOutputDeviceId(parsed.audioOutputDeviceId);
         } catch (e) {
@@ -269,6 +275,31 @@ export function App() {
         setAutoStart(status);
       }).catch(() => {});
     }
+
+    if (window.koolikellApi?.getSystemVolume) {
+      window.koolikellApi.getSystemVolume().then((vol) => {
+        if (typeof vol === 'number') {
+          setBellVolume(vol);
+          bellVolumeRef.current = vol;
+          lastVolumeSentRef.current = vol;
+        }
+      }).catch(() => {});
+    }
+
+    const unsubscribeVol = window.koolikellApi?.onSystemVolumeChanged
+      ? window.koolikellApi.onSystemVolumeChanged((vol) => {
+          setBellVolume(vol);
+          bellVolumeRef.current = vol;
+          lastVolumeSentRef.current = vol;
+          if (audioRef.current && !fadeIntervalRef.current) {
+            audioRef.current.volume = Math.max(0, Math.min(1, vol / 100));
+          }
+        })
+      : undefined;
+
+    return () => {
+      if (unsubscribeVol) unsubscribeVol();
+    };
   }, []);
 
   // Save persistent state on changes
@@ -283,7 +314,6 @@ export function App() {
       shortenedSchedules,
       shortenedEnabled,
       autoStart,
-      systemVolume,
       weekendsOff,
       audioOutputDeviceId,
     };
@@ -302,7 +332,6 @@ export function App() {
     shortenedSchedules,
     shortenedEnabled,
     autoStart,
-    systemVolume,
     weekendsOff,
     audioOutputDeviceId,
   ]);
@@ -316,6 +345,129 @@ export function App() {
       } catch (err) {
         console.warn('Could not set autostart via IPC:', err);
       }
+    }
+  };
+
+  // Export template / project to JSON file
+  const handleExportTemplate = async () => {
+    const templateData = {
+      appName: 'Koolikell',
+      version: 1,
+      exportedAt: new Date().toISOString(),
+      bellDuration,
+      bellRepeat,
+      weekendsOff,
+      shortenedEnabled,
+      schedules,
+      shortenedSchedules,
+    };
+
+    let success = false;
+    if (window.koolikellApi?.exportProject) {
+      try {
+        success = await window.koolikellApi.exportProject(templateData);
+      } catch (err) {
+        console.error('Export project error:', err);
+      }
+    } else {
+      // Browser fallback
+      try {
+        const blob = new Blob([JSON.stringify(templateData, null, 2)], { type: 'application/octet-stream' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'schedule.kl';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        success = true;
+      } catch (e) {
+        console.error('Fallback export error:', e);
+      }
+    }
+
+    if (success) {
+      showToast(t.templateExportSuccess, 'success');
+    }
+  };
+
+  // Import template / project from .kl file
+  const handleImportTemplate = async () => {
+    let imported: any = null;
+
+    if (window.koolikellApi?.importProject) {
+      try {
+        imported = await window.koolikellApi.importProject();
+      } catch (err) {
+        console.error('Import project error:', err);
+      }
+    } else {
+      // Browser fallback using input element
+      imported = await new Promise((resolve) => {
+        const input = document.createElement('input');
+        input.type = 'file';
+        input.accept = '.kl,.json,application/octet-stream';
+        input.onchange = (e) => {
+          const file = (e.target as HTMLInputElement).files?.[0];
+          if (!file) return resolve(null);
+          const reader = new FileReader();
+          reader.onload = (evt) => {
+            try {
+              const res = JSON.parse(evt.target?.result as string);
+              resolve(res);
+            } catch {
+              resolve(null);
+            }
+          };
+          reader.onerror = () => resolve(null);
+          reader.readAsText(file);
+        };
+        input.click();
+      });
+    }
+
+    if (!imported) return; // user cancelled
+
+    // Validate that imported has valid schedules array
+    if (
+      !imported ||
+      (!Array.isArray(imported.schedules) && !Array.isArray(imported.shortenedSchedules))
+    ) {
+      showToast(t.templateImportError, 'error');
+      return;
+    }
+
+    try {
+      if (Array.isArray(imported.schedules)) {
+        setSchedules(imported.schedules);
+        schedulesRef.current = imported.schedules;
+      }
+      if (Array.isArray(imported.shortenedSchedules)) {
+        setShortenedSchedules(imported.shortenedSchedules);
+        shortenedSchedulesRef.current = imported.shortenedSchedules;
+      }
+      if (typeof imported.shortenedEnabled === 'boolean') {
+        setShortenedEnabled(imported.shortenedEnabled);
+        shortenedEnabledRef.current = imported.shortenedEnabled;
+      }
+      if (typeof imported.bellDuration === 'number') {
+        setBellDuration(imported.bellDuration);
+        bellDurationRef.current = imported.bellDuration;
+      }
+      if (typeof imported.bellRepeat === 'boolean') {
+        setBellRepeat(imported.bellRepeat);
+        bellRepeatRef.current = imported.bellRepeat;
+      }
+      if (typeof imported.weekendsOff === 'boolean') {
+        setWeekendsOff(imported.weekendsOff);
+        weekendsOffRef.current = imported.weekendsOff;
+      }
+
+      showToast(t.templateImportSuccess, 'success');
+    } catch (e) {
+      console.error('Error applying imported template:', e);
+      showToast(t.templateImportError, 'error');
     }
   };
 
@@ -337,6 +489,24 @@ export function App() {
     setPlayingId(null);
   };
 
+  const handleBellVolumeChange = (newVol: number) => {
+    setBellVolume(newVol);
+    bellVolumeRef.current = newVol;
+    if (audioRef.current && !fadeIntervalRef.current) {
+      audioRef.current.volume = Math.max(0, Math.min(1, newVol / 100));
+    }
+
+    if (volumeDebounceTimerRef.current) {
+      clearTimeout(volumeDebounceTimerRef.current);
+    }
+    volumeDebounceTimerRef.current = setTimeout(() => {
+      if (window.koolikellApi?.setSystemVolume && lastVolumeSentRef.current !== newVol) {
+        lastVolumeSentRef.current = newVol;
+        window.koolikellApi.setSystemVolume(newVol).catch(() => {});
+      }
+    }, 30);
+  };
+
   const playTrackAudio = async (
     track: MusicTrack,
     durationSec: number,
@@ -347,7 +517,7 @@ export function App() {
   ) => {
     stopAllAudio();
 
-    const effectiveVol = Math.max(0.05, Math.min(1, (volPercent / 100) * (systemVolumeRef.current / 100)));
+    const effectiveVol = Math.max(0, Math.min(1, volPercent / 100));
     const primaryUrl = getAudioSourceUrl(track);
     const soundDuration = durationSec > 0 ? durationSec : 15;
     const fadeDurationSec = Math.min(3.0, Math.max(0.5, soundDuration * 0.25));
@@ -517,7 +687,7 @@ export function App() {
       return;
     }
     setIsTestingSound(true);
-    playTrackAudio(track, 3, 100, false, 0, 'test_sound');
+    playTrackAudio(track, 3, bellVolume, false, 0, 'test_sound');
     setTimeout(() => {
       setIsTestingSound(false);
     }, 3200);
@@ -744,7 +914,7 @@ export function App() {
             playTrackAudio(
               targetTrack,
               dur,
-              Math.max(1, bellVolumeRef.current || 80),
+              bellVolumeRef.current !== undefined ? bellVolumeRef.current : 100,
               false,
               offset,
               bell.id
@@ -866,7 +1036,7 @@ export function App() {
                 repeatMode={bellRepeat}
                 onSelectTrack={setSelectedBellTrack}
                 onDurationChange={setBellDuration}
-                onVolumeChange={setBellVolume}
+                onVolumeChange={handleBellVolumeChange}
                 onRepeatChange={setBellRepeat}
                 onDeleteTrack={handleDeleteTrack}
                 onUploadTrack={handleUploadTrack}
@@ -890,6 +1060,8 @@ export function App() {
                 shortenedEnabled={shortenedEnabled}
                 onDisableShortened={() => setShortenedEnabled(false)}
                 onNavigateToShortened={() => setActiveSection('shortened')}
+                onExportTemplate={handleExportTemplate}
+                onImportTemplate={handleImportTemplate}
               />
             )}
 
@@ -911,8 +1083,6 @@ export function App() {
               <SettingsSection
                 autoStart={autoStart}
                 onAutoStartChange={handleAutoStartChange}
-                systemVolume={systemVolume}
-                onSystemVolumeChange={setSystemVolume}
                 audioOutputDeviceId={audioOutputDeviceId}
                 onAudioOutputDeviceIdChange={setAudioOutputDeviceId}
                 onTestSound={handleTestSound}
@@ -920,7 +1090,8 @@ export function App() {
                 hasTracks={bellTracks.length > 0}
                 currentLang={lang}
                 onLangChange={setLang}
-                onSave={saveStateToStorage}
+                onExportTemplate={handleExportTemplate}
+                onImportTemplate={handleImportTemplate}
                 t={t}
               />
             )}
@@ -939,6 +1110,24 @@ export function App() {
           onSave={handleSaveTrimmedTrack}
           t={t}
         />
+      )}
+
+      {/* Floating Toast Notification */}
+      {toastMessage && (
+        <div
+          className={`fixed bottom-6 right-6 z-50 flex items-center gap-2.5 px-4 py-3 rounded-2xl shadow-xl border text-sm font-semibold transition-all duration-300 animate-fade-in ${
+            toastMessage.type === 'success'
+              ? 'bg-emerald-600 text-white border-emerald-500 shadow-emerald-500/20'
+              : 'bg-red-600 text-white border-red-500 shadow-red-500/20'
+          }`}
+        >
+          {toastMessage.type === 'success' ? (
+            <Check className="w-4 h-4 shrink-0" />
+          ) : (
+            <AlertTriangle className="w-4 h-4 shrink-0" />
+          )}
+          <span>{toastMessage.text}</span>
+        </div>
       )}
     </div>
   );
